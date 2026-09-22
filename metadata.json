@@ -1,0 +1,6 @@
+{
+  "name": "Wonder Toy",
+  "description": "Wonder Toy Qatar - Premier toy store destination with iconic brands, QAR pricing, fast Qatar doorstep delivery, and secure online payments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
