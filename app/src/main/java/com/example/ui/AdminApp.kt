@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -87,6 +88,7 @@ import java.util.Locale
 @Composable
 fun AdminApp(
   viewModel: AdminViewModel = viewModel(),
+  onBackClick: (() -> Unit)? = null,
   modifier: Modifier = Modifier
 ) {
   val orders by viewModel.orders.collectAsState()
@@ -143,6 +145,13 @@ fun AdminApp(
   Scaffold(
     topBar = {
       TopAppBar(
+        navigationIcon = {
+          if (onBackClick != null) {
+            IconButton(onClick = onBackClick) {
+              Icon(Icons.Filled.ArrowBack, contentDescription = "Back to Store")
+            }
+          }
+        },
         title = {
           Column {
             Row(verticalAlignment = Alignment.CenterVertically) {

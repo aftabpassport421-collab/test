@@ -1,0 +1,6 @@
+{
+  "name": "Wonder Toy Qatar",
+  "description": "Qatar's premier toy store with live orders and merchant admin portal",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
