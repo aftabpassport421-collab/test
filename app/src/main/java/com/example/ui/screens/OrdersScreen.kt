@@ -58,7 +58,6 @@ fun OrdersScreen(
   firestoreOrders: List<FirestoreOrder> = emptyList(),
   onShopToysClick: () -> Unit,
   onTrackFirestoreOrderClick: (FirestoreOrder) -> Unit = {},
-  onOpenAdminClick: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val hasAnyOrders = orders.isNotEmpty() || firestoreOrders.isNotEmpty()
@@ -130,13 +129,18 @@ fun OrdersScreen(
             )
           }
 
-          OutlinedButton(
-            onClick = onOpenAdminClick,
+          Surface(
             shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-            modifier = Modifier.testTag("orders_admin_portal_btn")
+            color = MintAccent.copy(alpha = 0.12f),
+            modifier = Modifier.testTag("orders_live_badge")
           ) {
-            Text("Admin 🛠️", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(
+              text = "Live Updates ⚡",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold,
+              color = MintAccent,
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
           }
         }
         Spacer(modifier = Modifier.height(14.dp))

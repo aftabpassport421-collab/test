@@ -49,13 +49,10 @@ import com.example.model.StoreBranch
 import com.example.model.ToyItem
 import com.example.model.UserProfile
 import com.example.ui.components.WonderToyTopBar
-import com.example.ui.dialogs.AppModeSelectorDialog
-import com.example.ui.dialogs.AppRoleMode
 import com.example.ui.dialogs.CheckoutDialog
 import com.example.ui.dialogs.OrderSuccessDialog
 import com.example.ui.dialogs.QatarRegistrationDialog
 import com.example.ui.dialogs.ToyDetailDialog
-import com.example.ui.screens.AdminOrdersScreen
 import com.example.ui.screens.CartScreen
 import com.example.ui.screens.CatalogScreen
 import com.example.ui.screens.HomeScreen
@@ -163,33 +160,16 @@ fun WonderToyAppContent(
 ) {
   var currentTab by rememberSaveable { mutableStateOf(BottomTab.HOME) }
 
-  // 1. Separate Admin App View
-  if (uiState.appMode == AppRoleMode.ADMIN || uiState.isAdminViewVisible) {
-    AdminOrdersScreen(
-      orders = uiState.firestoreOrders,
-      onUpdateStatus = { orderId, status -> onUpdateOrderStatus(orderId, status) },
-      onViewOrderTracking = { order -> onShowOrderTracking(order) },
-      onBackToStore = {
-        onSetAppMode(AppRoleMode.CUSTOMER)
-        onShowAdminView(false)
-      },
-      modifier = modifier.fillMaxSize()
-    )
-  }
-  // 2. Real-Time Tracking View
-  else if (uiState.selectedTrackingOrder != null) {
+  // 1. Real-Time Tracking View
+  if (uiState.selectedTrackingOrder != null) {
     OrderTrackingScreen(
       order = uiState.selectedTrackingOrder,
       onBackClick = { onShowOrderTracking(null) },
       onUpdateStatusTest = { status -> onUpdateOrderStatus(uiState.selectedTrackingOrder.orderId, status) },
-      onOpenAdminView = {
-        onShowOrderTracking(null)
-        onSetAppMode(AppRoleMode.ADMIN)
-      },
       modifier = modifier.fillMaxSize()
     )
   }
-  // 3. Checkout & Payment Screen
+  // 2. Checkout & Payment Screen
   else if (uiState.isCheckoutVisible) {
     PaymentScreen(
       cartItems = uiState.cartItems,
@@ -208,7 +188,7 @@ fun WonderToyAppContent(
       modifier = modifier.fillMaxSize()
     )
   }
-  // 4. Customer Shopping App
+  // 3. Customer Shopping App
   else {
     Scaffold(
       topBar = {
@@ -224,10 +204,7 @@ fun WonderToyAppContent(
           wishlistCount = uiState.wishlistIds.size,
           onCartClick = { currentTab = BottomTab.CART },
           onWishlistClick = { currentTab = BottomTab.WISHLIST },
-          onAdminClick = { onSetAppMode(AppRoleMode.ADMIN) },
           onProfileClick = { currentTab = BottomTab.PROFILE },
-          onAppModeClick = { onShowModeSelector(true) },
-          currentModeLabel = "Customer 🛍️",
           onLocationClick = null
         )
       },

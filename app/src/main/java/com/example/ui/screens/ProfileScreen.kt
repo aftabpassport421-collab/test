@@ -62,7 +62,6 @@ fun ProfileScreen(
   user: UserProfile,
   onOpenAuthDialog: () -> Unit,
   onViewOrders: () -> Unit,
-  onSwitchToAdminApp: () -> Unit,
   onLogout: () -> Unit,
   modifier: Modifier = Modifier
 ) {
@@ -72,7 +71,7 @@ fun ProfileScreen(
       .testTag("customer_profile_screen"),
     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp)
   ) {
-    // Header Row with App Switcher pill
+    // Header Row
     item {
       Row(
         modifier = Modifier.fillMaxWidth(),
@@ -93,21 +92,18 @@ fun ProfileScreen(
           )
         }
 
-        // Switch to Admin App button
         Surface(
           shape = RoundedCornerShape(12.dp),
-          color = IndigoPrimary.copy(alpha = 0.12f),
-          modifier = Modifier.testTag("profile_switch_to_admin_btn")
+          color = MintAccent.copy(alpha = 0.12f),
+          modifier = Modifier.testTag("profile_verified_badge")
         ) {
           Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-              .clickable { onSwitchToAdminApp() }
-              .padding(horizontal = 10.dp, vertical = 6.dp)
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
           ) {
-            Icon(Icons.Filled.Storefront, contentDescription = null, tint = IndigoPrimary, modifier = Modifier.size(16.dp))
+            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MintAccent, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("Admin App 🛠️", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = IndigoPrimary)
+            Text("Qatar Verified 🇶🇦", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MintAccent)
           }
         }
       }
@@ -332,28 +328,6 @@ fun ProfileScreen(
               Column {
                 Text("My Orders & Live Qatar Tracking", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Text("Real-time Firestore dispatch updates", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-              }
-            }
-            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.Gray)
-          }
-
-          Divider()
-
-          // Launch Admin App option
-          Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .clickable { onSwitchToAdminApp() }
-              .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              Icon(Icons.Filled.Storefront, contentDescription = null, tint = CoralSecondary, modifier = Modifier.size(20.dp))
-              Spacer(modifier = Modifier.width(12.dp))
-              Column {
-                Text("Switch to Admin / Merchant App 🛠️", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CoralSecondary)
-                Text("Manage queue, update order statuses, view analytics", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
               }
             }
             Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.Gray)
