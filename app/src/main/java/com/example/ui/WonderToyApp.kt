@@ -115,11 +115,8 @@ fun WonderToyApp(
     onPlaceOrder = { name, phone, address, city, payment ->
       viewModel.placeOrder(name, phone, address, city, payment)
     },
-    onShowAdminView = { show -> viewModel.showAdminView(show) },
     onShowOrderTracking = { order -> viewModel.showOrderTracking(order) },
     onUpdateOrderStatus = { orderId, status -> viewModel.updateOrderStatus(orderId, status) },
-    onSetAppMode = { mode -> viewModel.setAppMode(mode) },
-    onShowModeSelector = { show -> viewModel.showModeSelector(show) },
     onShowAuthDialog = { show -> viewModel.showAuthDialog(show) },
     onUpdateUserProfile = { profile -> viewModel.updateUserProfile(profile) },
     onLogoutUser = { viewModel.logoutUser() },
@@ -148,11 +145,8 @@ fun WonderToyAppContent(
   onShowCheckout: (Boolean) -> Unit = {},
   onDismissOrderSuccess: () -> Unit = {},
   onPlaceOrder: (String, String, String, String, String) -> Unit = { _, _, _, _, _ -> },
-  onShowAdminView: (Boolean) -> Unit = {},
   onShowOrderTracking: (FirestoreOrder?) -> Unit = {},
   onUpdateOrderStatus: (String, String) -> Unit = { _, _ -> },
-  onSetAppMode: (AppRoleMode) -> Unit = {},
-  onShowModeSelector: (Boolean) -> Unit = {},
   onShowAuthDialog: (Boolean) -> Unit = {},
   onUpdateUserProfile: (UserProfile) -> Unit = {},
   onLogoutUser: () -> Unit = {},
@@ -366,8 +360,7 @@ fun WonderToyAppContent(
               orders = uiState.orders,
               firestoreOrders = uiState.firestoreOrders,
               onShopToysClick = { currentTab = BottomTab.CATALOG },
-              onTrackFirestoreOrderClick = { order -> onShowOrderTracking(order) },
-              onOpenAdminClick = { onSetAppMode(AppRoleMode.ADMIN) }
+              onTrackFirestoreOrderClick = { order -> onShowOrderTracking(order) }
             )
           }
           BottomTab.PROFILE -> {
@@ -375,7 +368,6 @@ fun WonderToyAppContent(
               user = uiState.userProfile,
               onOpenAuthDialog = { onShowAuthDialog(true) },
               onViewOrders = { currentTab = BottomTab.ORDERS },
-              onSwitchToAdminApp = { onSetAppMode(AppRoleMode.ADMIN) },
               onLogout = { onLogoutUser() }
             )
           }
@@ -422,17 +414,6 @@ fun WonderToyAppContent(
             onDismiss = { onShowAuthDialog(false) },
             onRegistrationComplete = { updatedProfile ->
               onUpdateUserProfile(updatedProfile)
-            }
-          )
-        }
-
-        // Dialog 4: App Mode Switcher (Customer App vs Admin/Merchant App)
-        if (uiState.isModeSelectorVisible) {
-          AppModeSelectorDialog(
-            currentMode = uiState.appMode,
-            onDismiss = { onShowModeSelector(false) },
-            onSelectMode = { newMode ->
-              onSetAppMode(newMode)
             }
           )
         }
