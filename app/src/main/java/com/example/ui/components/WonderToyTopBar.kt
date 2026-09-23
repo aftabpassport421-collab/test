@@ -58,6 +58,9 @@ fun WonderToyTopBar(
   onWishlistClick: () -> Unit,
   onLocationClick: (() -> Unit)? = null,
   onAdminClick: (() -> Unit)? = null,
+  onProfileClick: (() -> Unit)? = null,
+  onAppModeClick: (() -> Unit)? = null,
+  currentModeLabel: String = "Customer 🛍️",
   modifier: Modifier = Modifier
 ) {
   Surface(
@@ -107,23 +110,41 @@ fun WonderToyTopBar(
                 fontSize = 14.sp
               )
             }
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              modifier = if (onLocationClick != null) Modifier.clickable { onLocationClick() } else Modifier
-            ) {
-              Icon(
-                imageVector = Icons.Filled.LocationOn,
-                contentDescription = "Location",
-                tint = CoralSecondary,
-                modifier = Modifier.size(12.dp)
-              )
-              Spacer(modifier = Modifier.width(2.dp))
-              Text(
-                text = "Doha, Qatar • Fast Delivery",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
+            if (onAppModeClick != null) {
+              Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = IndigoPrimary.copy(alpha = 0.12f),
+                modifier = Modifier
+                  .clickable { onAppModeClick() }
+                  .testTag("topbar_mode_badge")
+              ) {
+                Text(
+                  text = "App: $currentModeLabel ⇄",
+                  fontSize = 10.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = IndigoPrimary,
+                  modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+              }
+            } else {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = if (onLocationClick != null) Modifier.clickable { onLocationClick() } else Modifier
+              ) {
+                Icon(
+                  imageVector = Icons.Filled.LocationOn,
+                  contentDescription = "Location",
+                  tint = CoralSecondary,
+                  modifier = Modifier.size(12.dp)
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Text(
+                  text = "Doha, Qatar • Fast Delivery",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Medium,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+              }
             }
           }
         }
@@ -150,6 +171,15 @@ fun WonderToyTopBar(
                   color = IndigoPrimary
                 )
               }
+            }
+          }
+
+          if (onProfileClick != null) {
+            IconButton(
+              onClick = onProfileClick,
+              modifier = Modifier.testTag("topbar_profile_icon_btn")
+            ) {
+              Text(text = "👤", fontSize = 18.sp)
             }
           }
 

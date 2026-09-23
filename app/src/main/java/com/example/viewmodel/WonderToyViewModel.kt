@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.FirestoreOrderRepository
 import com.example.data.ToyCatalog
+import com.example.data.UserSessionManager
 import com.example.model.CartItem
 import com.example.model.DeliveryType
 import com.example.model.FirestoreOrder
@@ -13,6 +14,8 @@ import com.example.model.Order
 import com.example.model.OrderStatus
 import com.example.model.StoreBranch
 import com.example.model.ToyItem
+import com.example.model.UserProfile
+import com.example.ui.dialogs.AppRoleMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,7 +77,11 @@ data class WonderToyUiState(
   val firestoreOrders: List<FirestoreOrder> = emptyList(),
   val selectedTrackingOrder: FirestoreOrder? = null,
   val isAdminViewVisible: Boolean = false,
-  val currentUserId: String = "user_qatar_doha"
+  val currentUserId: String = "user_qatar_doha",
+  val userProfile: UserProfile = UserProfile(),
+  val appMode: AppRoleMode = AppRoleMode.CUSTOMER,
+  val isAuthDialogVisible: Boolean = false,
+  val isModeSelectorVisible: Boolean = false
 ) {
   val cartSubtotalQar: Double
     get() = cartItems.sumOf { it.itemTotalQar }
@@ -95,9 +102,11 @@ data class WonderToyUiState(
 class WonderToyViewModel(application: Application) : AndroidViewModel(application) {
 
   private val firestoreRepo = FirestoreOrderRepository.getInstance(application)
+  private val userSessionManager = UserSessionManager(application)
 
   private val _uiState = MutableStateFlow(
     WonderToyUiState(
+      userProfile = userSessionManager.getProfile(),
       firestoreOrders = firestoreRepo.getOrdersSync()
     )
   )
@@ -419,5 +428,46 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
 
   fun showAdminView(show: Boolean) {
     _uiState.update { it.copy(isAdminViewVisible = show) }
+  }
+
+  fun setAppMode(mode: AppRoleMode) {
+    _uiState.update {
+      it.copy(
+        appMode = mode,
+        isAdminViewVisible = (mode == AppRoleMode.ADMIN)
+      )
+    }
+  }
+
+  fun showModeSelector(show: Boolean) {
+    _uiState.update { it.copy(isModeSelectorVisible = show) }
+  }
+
+  fun showAuthDialog(show: Boolean) {
+    _uiState.update { it.copy(isAuthDialogVisible = show) }
+  }
+
+  fun updateUserProfile(profile: UserProfile) {
+    userSessionManager.saveProfile(profile)
+    _uiState.update {
+      it.copy(
+        userProfile = profile,
+        currentUserId = profile.id,
+        isAuthDialogVisible = false
+      )
+    }
+  }
+
+  fun logoutUser() {
+    userSessionManager.clearSession()
+    val guest = UserProfile(
+      id = "user_guest_${System.currentTimeMillis() % 10000}",
+      name = "Guest User",
+      phone = "+974 ",
+      email = "",
+      isRegistered = false,
+      rewardsPoints = 0
+    )
+    _uiState.update { it.copy(userProfile = guest, isAuthDialogVisible = true) }
   }
 }

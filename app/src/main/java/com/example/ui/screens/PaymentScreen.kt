@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.CartItem
 import com.example.model.DeliveryType
+import com.example.model.UserProfile
 import com.example.ui.theme.CoralSecondary
 import com.example.ui.theme.IndigoPrimary
 import com.example.ui.theme.MintAccent
@@ -90,14 +91,15 @@ fun PaymentScreen(
   onDeliveryTypeChange: (DeliveryType) -> Unit,
   onBackClick: () -> Unit,
   onConfirmOrder: (name: String, phone: String, address: String, city: String, payment: String) -> Unit,
+  userProfile: UserProfile? = null,
   modifier: Modifier = Modifier
 ) {
   val scope = rememberCoroutineScope()
 
-  var customerName by remember { mutableStateOf("Mohammed Al-Kuwari") }
-  var phone by remember { mutableStateOf("+974 5512 3456") }
-  var city by remember { mutableStateOf("Doha") }
-  var streetAddress by remember { mutableStateOf("Villa 28, Street 902, West Bay Lagoon") }
+  var customerName by remember { mutableStateOf(userProfile?.name ?: "Mohammed Al-Kuwari") }
+  var phone by remember { mutableStateOf(userProfile?.nationalPhoneFormatted ?: "+974 5512 3456") }
+  var city by remember { mutableStateOf(userProfile?.city ?: "Doha") }
+  var streetAddress by remember { mutableStateOf(userProfile?.fullQatarAddress ?: "Villa 28, Street 902, West Bay Lagoon") }
   var paymentMethod by remember { mutableStateOf("Credit / Debit Card") }
 
   // Card details

@@ -10,11 +10,13 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocalShipping
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -45,17 +47,22 @@ import com.example.model.DeliveryType
 import com.example.model.FirestoreOrder
 import com.example.model.StoreBranch
 import com.example.model.ToyItem
+import com.example.model.UserProfile
 import com.example.ui.components.WonderToyTopBar
-import com.example.ui.screens.AdminOrdersScreen
-import com.example.ui.screens.OrderTrackingScreen
-import com.example.ui.screens.PaymentScreen
+import com.example.ui.dialogs.AppModeSelectorDialog
+import com.example.ui.dialogs.AppRoleMode
 import com.example.ui.dialogs.CheckoutDialog
 import com.example.ui.dialogs.OrderSuccessDialog
+import com.example.ui.dialogs.QatarRegistrationDialog
 import com.example.ui.dialogs.ToyDetailDialog
+import com.example.ui.screens.AdminOrdersScreen
 import com.example.ui.screens.CartScreen
 import com.example.ui.screens.CatalogScreen
 import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.OrderTrackingScreen
 import com.example.ui.screens.OrdersScreen
+import com.example.ui.screens.PaymentScreen
+import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.WishlistScreen
 import com.example.ui.theme.CoralSecondary
 import com.example.ui.theme.IndigoPrimary
@@ -71,9 +78,10 @@ enum class BottomTab(
 ) {
   HOME("Home", Icons.Filled.Home, Icons.Outlined.Home),
   CATALOG("Toys", Icons.Filled.Category, Icons.Outlined.Category),
-  WISHLIST("Wishlist", Icons.Filled.Favorite, Icons.Outlined.FavoriteBorder),
   CART("Cart", Icons.Filled.ShoppingCart, Icons.Outlined.ShoppingCart),
-  ORDERS("Orders", Icons.Filled.LocalShipping, Icons.Outlined.LocalShipping)
+  ORDERS("Orders", Icons.Filled.LocalShipping, Icons.Outlined.LocalShipping),
+  PROFILE("Account", Icons.Filled.Person, Icons.Outlined.Person),
+  WISHLIST("Wishlist", Icons.Filled.Favorite, Icons.Outlined.FavoriteBorder)
 }
 
 @Composable
@@ -113,6 +121,11 @@ fun WonderToyApp(
     onShowAdminView = { show -> viewModel.showAdminView(show) },
     onShowOrderTracking = { order -> viewModel.showOrderTracking(order) },
     onUpdateOrderStatus = { orderId, status -> viewModel.updateOrderStatus(orderId, status) },
+    onSetAppMode = { mode -> viewModel.setAppMode(mode) },
+    onShowModeSelector = { show -> viewModel.showModeSelector(show) },
+    onShowAuthDialog = { show -> viewModel.showAuthDialog(show) },
+    onUpdateUserProfile = { profile -> viewModel.updateUserProfile(profile) },
+    onLogoutUser = { viewModel.logoutUser() },
     modifier = modifier
   )
 }
@@ -141,30 +154,43 @@ fun WonderToyAppContent(
   onShowAdminView: (Boolean) -> Unit = {},
   onShowOrderTracking: (FirestoreOrder?) -> Unit = {},
   onUpdateOrderStatus: (String, String) -> Unit = { _, _ -> },
+  onSetAppMode: (AppRoleMode) -> Unit = {},
+  onShowModeSelector: (Boolean) -> Unit = {},
+  onShowAuthDialog: (Boolean) -> Unit = {},
+  onUpdateUserProfile: (UserProfile) -> Unit = {},
+  onLogoutUser: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   var currentTab by rememberSaveable { mutableStateOf(BottomTab.HOME) }
 
-  if (uiState.isAdminViewVisible) {
+  // 1. Separate Admin App View
+  if (uiState.appMode == AppRoleMode.ADMIN || uiState.isAdminViewVisible) {
     AdminOrdersScreen(
       orders = uiState.firestoreOrders,
       onUpdateStatus = { orderId, status -> onUpdateOrderStatus(orderId, status) },
       onViewOrderTracking = { order -> onShowOrderTracking(order) },
-      onBackToStore = { onShowAdminView(false) },
+      onBackToStore = {
+        onSetAppMode(AppRoleMode.CUSTOMER)
+        onShowAdminView(false)
+      },
       modifier = modifier.fillMaxSize()
     )
-  } else if (uiState.selectedTrackingOrder != null) {
+  }
+  // 2. Real-Time Tracking View
+  else if (uiState.selectedTrackingOrder != null) {
     OrderTrackingScreen(
       order = uiState.selectedTrackingOrder,
       onBackClick = { onShowOrderTracking(null) },
       onUpdateStatusTest = { status -> onUpdateOrderStatus(uiState.selectedTrackingOrder.orderId, status) },
       onOpenAdminView = {
         onShowOrderTracking(null)
-        onShowAdminView(true)
+        onSetAppMode(AppRoleMode.ADMIN)
       },
       modifier = modifier.fillMaxSize()
     )
-  } else if (uiState.isCheckoutVisible) {
+  }
+  // 3. Checkout & Payment Screen
+  else if (uiState.isCheckoutVisible) {
     PaymentScreen(
       cartItems = uiState.cartItems,
       subtotalQar = uiState.cartSubtotalQar,
@@ -178,9 +204,12 @@ fun WonderToyAppContent(
         currentTab = BottomTab.ORDERS
         onPlaceOrder(name, phone, address, city, payment)
       },
+      userProfile = uiState.userProfile,
       modifier = modifier.fillMaxSize()
     )
-  } else {
+  }
+  // 4. Customer Shopping App
+  else {
     Scaffold(
       topBar = {
         WonderToyTopBar(
@@ -195,202 +224,244 @@ fun WonderToyAppContent(
           wishlistCount = uiState.wishlistIds.size,
           onCartClick = { currentTab = BottomTab.CART },
           onWishlistClick = { currentTab = BottomTab.WISHLIST },
-          onAdminClick = { onShowAdminView(true) },
+          onAdminClick = { onSetAppMode(AppRoleMode.ADMIN) },
+          onProfileClick = { currentTab = BottomTab.PROFILE },
+          onAppModeClick = { onShowModeSelector(true) },
+          currentModeLabel = "Customer 🛍️",
           onLocationClick = null
         )
       },
       bottomBar = {
-      NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 4.dp,
-        windowInsets = NavigationBarDefaults.windowInsets,
-        modifier = Modifier.testTag("bottom_nav_bar")
-      ) {
-        BottomTab.values().forEach { tab ->
-          val isSelected = currentTab == tab
-          NavigationBarItem(
-            selected = isSelected,
-            onClick = { currentTab = tab },
-            icon = {
-              if (tab == BottomTab.CART && uiState.totalCartItemCount > 0) {
-                BadgedBox(
-                  badge = {
-                    Badge(
-                      containerColor = IndigoPrimary,
-                      contentColor = Color.White
-                    ) {
-                      Text("${uiState.totalCartItemCount}", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        NavigationBar(
+          containerColor = MaterialTheme.colorScheme.surface,
+          tonalElevation = 4.dp,
+          windowInsets = NavigationBarDefaults.windowInsets,
+          modifier = Modifier.testTag("bottom_nav_bar")
+        ) {
+          val navTabs = listOf(
+            BottomTab.HOME,
+            BottomTab.CATALOG,
+            BottomTab.CART,
+            BottomTab.ORDERS,
+            BottomTab.PROFILE
+          )
+
+          navTabs.forEach { tab ->
+            val isSelected = currentTab == tab
+            NavigationBarItem(
+              selected = isSelected,
+              onClick = { currentTab = tab },
+              icon = {
+                if (tab == BottomTab.CART && uiState.totalCartItemCount > 0) {
+                  BadgedBox(
+                    badge = {
+                      Badge(
+                        containerColor = IndigoPrimary,
+                        contentColor = Color.White
+                      ) {
+                        Text("${uiState.totalCartItemCount}", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                      }
                     }
+                  ) {
+                    Icon(
+                      imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                      contentDescription = tab.label
+                    )
                   }
-                ) {
+                } else if (tab == BottomTab.PROFILE && !uiState.userProfile.isRegistered) {
+                  BadgedBox(
+                    badge = {
+                      Badge(
+                        containerColor = CoralSecondary,
+                        contentColor = Color.White
+                      ) {
+                        Text("!", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                      }
+                    }
+                  ) {
+                    Icon(
+                      imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                      contentDescription = tab.label
+                    )
+                  }
+                } else {
                   Icon(
                     imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
                     contentDescription = tab.label
                   )
                 }
-              } else if (tab == BottomTab.WISHLIST && uiState.wishlistIds.isNotEmpty()) {
-                BadgedBox(
-                  badge = {
-                    Badge(
-                      containerColor = CoralSecondary,
-                      contentColor = Color.White
-                    ) {
-                      Text("${uiState.wishlistIds.size}", fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    }
-                  }
-                ) {
-                  Icon(
-                    imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                    contentDescription = tab.label
-                  )
-                }
-              } else {
-                Icon(
-                  imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                  contentDescription = tab.label
+              },
+              label = {
+                Text(
+                  text = tab.label,
+                  fontSize = 11.sp,
+                  fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                 )
-              }
-            },
-            label = {
-              Text(
-                text = tab.label,
-                fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-              )
-            },
-            colors = NavigationBarItemDefaults.colors(
-              selectedIconColor = IndigoPrimary,
-              selectedTextColor = IndigoPrimary,
-              indicatorColor = IndigoPrimary.copy(alpha = 0.15f),
-              unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-              unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-            modifier = Modifier.testTag("nav_tab_${tab.name.lowercase()}")
-          )
-        }
-      }
-    },
-    modifier = modifier.fillMaxSize()
-  ) { innerPadding ->
-    Box(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(innerPadding)
-    ) {
-      when (currentTab) {
-        BottomTab.HOME -> {
-          HomeScreen(
-            toys = uiState.toys,
-            wishlistIds = uiState.wishlistIds,
-            selectedAgeGroup = uiState.selectedAgeGroup,
-            onAgeGroupSelect = {
-              onSelectAgeGroup(it)
-              currentTab = BottomTab.CATALOG
-            },
-            onBrandSelect = {
-              onSelectBrand(it)
-              currentTab = BottomTab.CATALOG
-            },
-            onToyClick = { onShowToyDetail(it) },
-            onWishlistToggle = { onToggleWishlist(it) },
-            onAddToCart = { onAddToCart(it, false) },
-            onExploreAllClick = { currentTab = BottomTab.CATALOG }
-          )
-        }
-        BottomTab.CATALOG -> {
-          CatalogScreen(
-            toys = uiState.filteredToys,
-            wishlistIds = uiState.wishlistIds,
-            selectedCategory = uiState.selectedCategory,
-            selectedAgeGroup = uiState.selectedAgeGroup,
-            selectedBrand = uiState.selectedBrand,
-            sortOrder = uiState.sortOrder,
-            onCategorySelect = { onSelectCategory(it) },
-            onAgeSelect = { onSelectAgeGroup(it) },
-            onBrandSelect = { onSelectBrand(it) },
-            onSortSelect = { onSetSortOrder(it) },
-            onClearFilters = { onClearFilters() },
-            onToyClick = { onShowToyDetail(it) },
-            onWishlistToggle = { onToggleWishlist(it) },
-            onAddToCart = { onAddToCart(it, false) }
-          )
-        }
-        BottomTab.WISHLIST -> {
-          val wishlistItems = uiState.toys.filter { uiState.wishlistIds.contains(it.id) }
-          WishlistScreen(
-            wishlistToys = wishlistItems,
-            onToyClick = { onShowToyDetail(it) },
-            onWishlistToggle = { onToggleWishlist(it) },
-            onAddToCart = { onAddToCart(it, false) },
-            onBrowseClick = { currentTab = BottomTab.CATALOG }
-          )
-        }
-        BottomTab.CART -> {
-          CartScreen(
-            cartItems = uiState.cartItems,
-            subtotalQar = uiState.cartSubtotalQar,
-            deliveryFeeQar = uiState.deliveryFeeQar,
-            discountQar = uiState.discountAmountQar,
-            finalTotalQar = uiState.finalTotalQar,
-            promoCode = uiState.promoCode,
-            promoMessage = uiState.promoMessage,
-            deliveryType = uiState.deliveryType,
-            onQuantityChange = { toyId, qty -> onUpdateCartQuantity(toyId, qty) },
-            onGiftWrapToggle = { toyId -> onToggleGiftWrap(toyId) },
-            onRemoveItem = { toyId -> onRemoveFromCart(toyId) },
-            onApplyPromo = { code -> onApplyPromo(code) },
-            onDeliveryTypeChange = { type -> onSetDeliveryType(type) },
-            onProceedToCheckout = { onShowCheckout(true) },
-            onBrowseClick = { currentTab = BottomTab.CATALOG }
-          )
-        }
-        BottomTab.ORDERS -> {
-          OrdersScreen(
-            orders = uiState.orders,
-            firestoreOrders = uiState.firestoreOrders,
-            onShopToysClick = { currentTab = BottomTab.CATALOG },
-            onTrackFirestoreOrderClick = { order -> onShowOrderTracking(order) },
-            onOpenAdminClick = { onShowAdminView(true) }
-          )
-        }
-      }
-
-      // Dialog 1: Toy Detail Bottom Sheet
-      uiState.selectedToyDetail?.let { toy ->
-        ToyDetailDialog(
-          toy = toy,
-          isWishlisted = uiState.wishlistIds.contains(toy.id),
-          onDismiss = { onShowToyDetail(null) },
-          onWishlistToggle = { onToggleWishlist(toy.id) },
-          onAddToCart = { giftWrap ->
-            onAddToCart(toy, giftWrap)
-          },
-          onDirectBuy = { giftWrap ->
-            onAddToCart(toy, giftWrap)
-            onShowCheckout(true)
+              },
+              colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = IndigoPrimary,
+                selectedTextColor = IndigoPrimary,
+                indicatorColor = IndigoPrimary.copy(alpha = 0.15f),
+                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+              ),
+              modifier = Modifier.testTag("nav_tab_${tab.name.lowercase()}")
+            )
           }
-        )
-      }
+        }
+      },
+      modifier = modifier.fillMaxSize()
+    ) { innerPadding ->
+      Box(
+        modifier = Modifier
+          .fillMaxSize()
+          .padding(innerPadding)
+      ) {
+        when (currentTab) {
+          BottomTab.HOME -> {
+            HomeScreen(
+              toys = uiState.toys,
+              wishlistIds = uiState.wishlistIds,
+              selectedAgeGroup = uiState.selectedAgeGroup,
+              onAgeGroupSelect = {
+                onSelectAgeGroup(it)
+                currentTab = BottomTab.CATALOG
+              },
+              onBrandSelect = {
+                onSelectBrand(it)
+                currentTab = BottomTab.CATALOG
+              },
+              onToyClick = { onShowToyDetail(it) },
+              onWishlistToggle = { onToggleWishlist(it) },
+              onAddToCart = { onAddToCart(it, false) },
+              onExploreAllClick = { currentTab = BottomTab.CATALOG }
+            )
+          }
+          BottomTab.CATALOG -> {
+            CatalogScreen(
+              toys = uiState.filteredToys,
+              wishlistIds = uiState.wishlistIds,
+              selectedCategory = uiState.selectedCategory,
+              selectedAgeGroup = uiState.selectedAgeGroup,
+              selectedBrand = uiState.selectedBrand,
+              sortOrder = uiState.sortOrder,
+              onCategorySelect = { onSelectCategory(it) },
+              onAgeSelect = { onSelectAgeGroup(it) },
+              onBrandSelect = { onSelectBrand(it) },
+              onSortSelect = { onSetSortOrder(it) },
+              onClearFilters = { onClearFilters() },
+              onToyClick = { onShowToyDetail(it) },
+              onWishlistToggle = { onToggleWishlist(it) },
+              onAddToCart = { onAddToCart(it, false) }
+            )
+          }
+          BottomTab.WISHLIST -> {
+            val wishlistItems = uiState.toys.filter { uiState.wishlistIds.contains(it.id) }
+            WishlistScreen(
+              wishlistToys = wishlistItems,
+              onToyClick = { onShowToyDetail(it) },
+              onWishlistToggle = { onToggleWishlist(it) },
+              onAddToCart = { onAddToCart(it, false) },
+              onBrowseClick = { currentTab = BottomTab.CATALOG }
+            )
+          }
+          BottomTab.CART -> {
+            CartScreen(
+              cartItems = uiState.cartItems,
+              subtotalQar = uiState.cartSubtotalQar,
+              deliveryFeeQar = uiState.deliveryFeeQar,
+              discountQar = uiState.discountAmountQar,
+              finalTotalQar = uiState.finalTotalQar,
+              promoCode = uiState.promoCode,
+              promoMessage = uiState.promoMessage,
+              deliveryType = uiState.deliveryType,
+              onQuantityChange = { toyId, qty -> onUpdateCartQuantity(toyId, qty) },
+              onGiftWrapToggle = { toyId -> onToggleGiftWrap(toyId) },
+              onRemoveItem = { toyId -> onRemoveFromCart(toyId) },
+              onApplyPromo = { code -> onApplyPromo(code) },
+              onDeliveryTypeChange = { type -> onSetDeliveryType(type) },
+              onProceedToCheckout = { onShowCheckout(true) },
+              onBrowseClick = { currentTab = BottomTab.CATALOG }
+            )
+          }
+          BottomTab.ORDERS -> {
+            OrdersScreen(
+              orders = uiState.orders,
+              firestoreOrders = uiState.firestoreOrders,
+              onShopToysClick = { currentTab = BottomTab.CATALOG },
+              onTrackFirestoreOrderClick = { order -> onShowOrderTracking(order) },
+              onOpenAdminClick = { onSetAppMode(AppRoleMode.ADMIN) }
+            )
+          }
+          BottomTab.PROFILE -> {
+            ProfileScreen(
+              user = uiState.userProfile,
+              onOpenAuthDialog = { onShowAuthDialog(true) },
+              onViewOrders = { currentTab = BottomTab.ORDERS },
+              onSwitchToAdminApp = { onSetAppMode(AppRoleMode.ADMIN) },
+              onLogout = { onLogoutUser() }
+            )
+          }
+        }
 
-      // Dialog 2: Order Success Celebration Dialog
-      uiState.completedOrder?.let { order ->
-        OrderSuccessDialog(
-          order = order,
-          onDismiss = { onDismissOrderSuccess() },
-          onViewOrders = {
-            onDismissOrderSuccess()
-            val matchingFsOrder = uiState.firestoreOrders.firstOrNull { it.orderId == order.id }
-            if (matchingFsOrder != null) {
-              onShowOrderTracking(matchingFsOrder)
-            } else {
-              currentTab = BottomTab.ORDERS
+        // Dialog 1: Toy Detail Bottom Sheet
+        uiState.selectedToyDetail?.let { toy ->
+          ToyDetailDialog(
+            toy = toy,
+            isWishlisted = uiState.wishlistIds.contains(toy.id),
+            onDismiss = { onShowToyDetail(null) },
+            onWishlistToggle = { onToggleWishlist(toy.id) },
+            onAddToCart = { giftWrap ->
+              onAddToCart(toy, giftWrap)
+            },
+            onDirectBuy = { giftWrap ->
+              onAddToCart(toy, giftWrap)
+              onShowCheckout(true)
             }
-          }
-        )
+          )
+        }
+
+        // Dialog 2: Order Success Celebration Dialog
+        uiState.completedOrder?.let { order ->
+          OrderSuccessDialog(
+            order = order,
+            onDismiss = { onDismissOrderSuccess() },
+            onViewOrders = {
+              onDismissOrderSuccess()
+              val matchingFsOrder = uiState.firestoreOrders.firstOrNull { it.orderId == order.id }
+              if (matchingFsOrder != null) {
+                onShowOrderTracking(matchingFsOrder)
+              } else {
+                currentTab = BottomTab.ORDERS
+              }
+            }
+          )
+        }
+
+        // Dialog 3: Qatar Mobile Registration & Auth Dialog (Yalla Toys Style)
+        if (uiState.isAuthDialogVisible) {
+          QatarRegistrationDialog(
+            initialUser = uiState.userProfile,
+            onDismiss = { onShowAuthDialog(false) },
+            onRegistrationComplete = { updatedProfile ->
+              onUpdateUserProfile(updatedProfile)
+            }
+          )
+        }
+
+        // Dialog 4: App Mode Switcher (Customer App vs Admin/Merchant App)
+        if (uiState.isModeSelectorVisible) {
+          AppModeSelectorDialog(
+            currentMode = uiState.appMode,
+            onDismiss = { onShowModeSelector(false) },
+            onSelectMode = { newMode ->
+              onSetAppMode(newMode)
+            }
+          )
+        }
       }
     }
   }
-}
 }
 
 @Preview(showBackground = true)
@@ -400,3 +471,4 @@ fun WonderToyAppPreview() {
     WonderToyAppContent(uiState = WonderToyUiState())
   }
 }
+

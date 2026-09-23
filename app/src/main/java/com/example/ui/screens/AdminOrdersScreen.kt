@@ -142,6 +142,22 @@ fun AdminOrdersScreen(
         actions = {
           Surface(
             shape = RoundedCornerShape(8.dp),
+            color = IndigoPrimary.copy(alpha = 0.12f),
+            modifier = Modifier
+              .clickable { onBackToStore() }
+              .padding(end = 6.dp)
+              .testTag("admin_switch_to_user_app_btn")
+          ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+            ) {
+              Text("Customer App 🛍️", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = IndigoPrimary)
+            }
+          }
+
+          Surface(
+            shape = RoundedCornerShape(8.dp),
             color = MintAccent.copy(alpha = 0.15f),
             modifier = Modifier.padding(end = 12.dp)
           ) {
