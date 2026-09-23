@@ -28,4 +28,6 @@ data class Order(
   val orderDateFormatted: String,
   val status: OrderStatus = OrderStatus.CONFIRMED,
   val estimatedArrival: String,
+  val transactionRef: String = "TXN-${(100000..999999).random()}",
+  val isPaid: Boolean = true
 )

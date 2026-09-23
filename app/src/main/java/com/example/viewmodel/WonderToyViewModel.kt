@@ -303,6 +303,14 @@ class WonderToyViewModel : ViewModel() {
 
     val locationText = "$addressOrArea, $city"
 
+    val isPaid = !paymentMethod.contains("Cash", ignoreCase = true)
+    val txnCode = when {
+      paymentMethod.contains("Apple", ignoreCase = true) -> "APL-${(10000..99999).random()}"
+      paymentMethod.contains("QPay", ignoreCase = true) -> "QPAY-${(10000..99999).random()}"
+      paymentMethod.contains("Card", ignoreCase = true) -> "QNB-${(100000..999999).random()}"
+      else -> "COD-${(1000..9999).random()}"
+    }
+
     val order = Order(
       id = randomId,
       items = currentCart,
@@ -318,7 +326,9 @@ class WonderToyViewModel : ViewModel() {
       paymentMethod = paymentMethod,
       orderDateFormatted = currentDateStr,
       status = OrderStatus.CONFIRMED,
-      estimatedArrival = _deliveryType.value.eta
+      estimatedArrival = _deliveryType.value.eta,
+      transactionRef = txnCode,
+      isPaid = isPaid
     )
 
     _orders.value = listOf(order) + _orders.value

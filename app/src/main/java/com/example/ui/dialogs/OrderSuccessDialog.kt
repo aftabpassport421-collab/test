@@ -110,6 +110,40 @@ fun OrderSuccessDialog(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween
             ) {
+              Text("Payment", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+              Text(
+                order.paymentMethod,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (order.isPaid) MintAccent else CoralSecondary
+              )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+              Text("Payment Status", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+              Text(
+                if (order.isPaid) "PAID & VERIFIED ✓" else "PAY ON DELIVERY",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = if (order.isPaid) MintAccent else CoralSecondary
+              )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+              Text("Reference #", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+              Text(order.transactionRef, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween
+            ) {
               Text("Delivery ETA", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
               Text(order.estimatedArrival, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CoralSecondary)
             }

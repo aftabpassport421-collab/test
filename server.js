@@ -1022,12 +1022,16 @@ function getHtml() {
 
           <!-- Card Inputs Form -->
           <div id="card-fields-box" class="card-fields-box">
-            <input type="text" id="card-number" placeholder="4508 1234 5678 9124" value="4508 1234 5678 9124" class="input-field" maxlength="19">
-            <div style="display:flex; gap:8px">
-              <input type="text" id="card-expiry" placeholder="MM/YY" value="08/28" class="input-field" maxlength="5">
-              <input type="password" id="card-cvv" placeholder="CVV" value="842" class="input-field" maxlength="4">
+            <div style="display:flex; gap:6px; margin-bottom:4px">
+              <button type="button" onclick="fillTestCard('visa')" style="flex:1; padding:6px; font-size:11px; font-weight:700; background:#EEF2FF; color:#4F46E5; border:1px solid #C7D2FE; border-radius:8px; cursor:pointer">⚡ Fill Visa Card</button>
+              <button type="button" onclick="fillTestCard('naps')" style="flex:1; padding:6px; font-size:11px; font-weight:700; background:#ECFDF5; color:#059669; border:1px solid #A7F3D0; border-radius:8px; cursor:pointer">⚡ Fill QNB NAPS</button>
             </div>
-            <input type="text" id="card-name" placeholder="Cardholder Name" value="FATIMA AL-KUWARI" class="input-field">
+            <input type="text" id="card-number" placeholder="4508 1234 5678 9124" value="4508 2384 9102 5519" class="input-field" maxlength="19">
+            <div style="display:flex; gap:8px">
+              <input type="text" id="card-expiry" placeholder="MM/YY" value="12/28" class="input-field" maxlength="5">
+              <input type="password" id="card-cvv" placeholder="CVV" value="382" class="input-field" maxlength="4">
+            </div>
+            <input type="text" id="card-name" placeholder="Cardholder Name" value="MOHAMMED AL-KUWARI" class="input-field">
           </div>
 
           <!-- Apple Pay Info -->
@@ -1300,6 +1304,20 @@ function getHtml() {
       document.getElementById('checkout-modal').classList.remove('open');
     }
 
+    function fillTestCard(type) {
+      if (type === 'visa') {
+        document.getElementById('card-number').value = '4508 2384 9102 5519';
+        document.getElementById('card-expiry').value = '12/28';
+        document.getElementById('card-cvv').value = '382';
+        document.getElementById('card-name').value = 'MOHAMMED AL-KUWARI';
+      } else {
+        document.getElementById('card-number').value = '5200 8192 3840 9124';
+        document.getElementById('card-expiry').value = '06/29';
+        document.getElementById('card-cvv').value = '714';
+        document.getElementById('card-name').value = 'QNB NAPS DEBIT';
+      }
+    }
+
     function confirmOrder() {
       const name = document.getElementById('chk-name').value;
       const phone = document.getElementById('chk-phone').value;
@@ -1307,16 +1325,30 @@ function getHtml() {
       const addr = document.getElementById('chk-address').value;
       const orderId = 'WT-' + Math.floor(10000 + Math.random() * 90000);
       
-      let payName = "Credit Card (•••• 9124)";
-      if (selectedPayment === 'apple') payName = "Apple Pay (Biometric)";
-      if (selectedPayment === 'qpay') payName = "QPay National Gateway";
+      let subtotal = 0;
+      cart.forEach(c => {
+        const toy = TOYS.find(t => t.id === c.id);
+        if (toy) {
+          subtotal += (toy.priceQar + (c.giftWrap ? 15 : 0)) * c.qty;
+        }
+      });
+      const discount = subtotal * 0.10;
+      const delivery = cart.length > 0 ? 25.0 : 0.0;
+      const totalAmount = Math.max(0, subtotal - discount + delivery);
+
+      const rawCard = document.getElementById('card-number').value || '4508 2384 9102 5519';
+      const last4 = rawCard.replace(/\s+/g, '').slice(-4) || '5519';
+      
+      let payName = "Card (•••• " + last4 + ")";
+      if (selectedPayment === 'apple') payName = "Apple Pay  (Biometric)";
+      if (selectedPayment === 'qpay') payName = "QPay (QNB NAPS Gateway)";
       if (selectedPayment === 'cod') payName = "Cash on Delivery";
 
       orders.unshift({
         id: orderId,
         date: "Just now",
-        item: cart.length + " toys ordered",
-        total: 124.0,
+        item: (cart.length > 0 ? cart.length : 1) + " toys ordered",
+        total: totalAmount > 0 ? totalAmount : 285.0,
         status: "CONFIRMED",
         dest: addr + ", " + city,
         payment: payName
@@ -1325,7 +1357,7 @@ function getHtml() {
       updateBadges();
       closeCheckout();
       setTab('orders');
-      alert('🎉 Order ' + orderId + ' Placed Successfully! Payment confirmed via ' + payName + '. Fast delivery on its way.');
+      alert('🎉 Order ' + orderId + ' Placed Successfully!\n\nPayment Method: ' + payName + '\nTotal: QAR ' + (totalAmount > 0 ? totalAmount.toFixed(2) : '285.00') + '\nDelivery: Express Doha dispatched within 30 mins.');
     }
 
     function filterBrand(brand) {
