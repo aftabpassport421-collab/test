@@ -41,7 +41,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.OutlinedButton
 import com.example.model.DeliveryType
+import com.example.model.FirestoreOrder
+import com.example.model.FirestoreOrderStatus
 import com.example.model.Order
 import com.example.model.OrderStatus
 import com.example.ui.theme.CoralSecondary
@@ -51,10 +55,15 @@ import com.example.ui.theme.MintAccent
 @Composable
 fun OrdersScreen(
   orders: List<Order>,
+  firestoreOrders: List<FirestoreOrder> = emptyList(),
   onShopToysClick: () -> Unit,
+  onTrackFirestoreOrderClick: (FirestoreOrder) -> Unit = {},
+  onOpenAdminClick: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
-  if (orders.isEmpty()) {
+  val hasAnyOrders = orders.isNotEmpty() || firestoreOrders.isNotEmpty()
+
+  if (!hasAnyOrders) {
     Column(
       modifier = modifier
         .fillMaxSize()
@@ -101,179 +110,171 @@ fun OrdersScreen(
       contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp)
     ) {
       item {
-        Text(
-          text = "My Orders & Qatar Tracking 🇶🇦",
-          fontSize = 20.sp,
-          fontWeight = FontWeight.Black,
-          color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-          text = "Real-time dispatch from Wonder Toy Doha fulfillment hub",
-          fontSize = 12.sp,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = "My Orders & Qatar Tracking 🇶🇦",
+              fontSize = 18.sp,
+              fontWeight = FontWeight.Black,
+              color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+              text = "Real-time sync via Firebase Firestore 📡",
+              fontSize = 11.sp,
+              color = MintAccent,
+              fontWeight = FontWeight.SemiBold
+            )
+          }
+
+          OutlinedButton(
+            onClick = onOpenAdminClick,
+            shape = RoundedCornerShape(8.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.testTag("orders_admin_portal_btn")
+          ) {
+            Text("Admin 🛠️", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+          }
+        }
         Spacer(modifier = Modifier.height(14.dp))
       }
 
-      items(orders, key = { it.id }) { order ->
-        Card(
-          shape = RoundedCornerShape(18.dp),
-          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .testTag("order_card_${order.id}")
-        ) {
-          Column(modifier = Modifier.padding(16.dp)) {
-            // Header Row
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
+      // Firestore Real-Time Orders
+      if (firestoreOrders.isNotEmpty()) {
+        item {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text(
+              text = "Live Firestore Orders (${firestoreOrders.size})",
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Bold,
+              color = IndigoPrimary
+            )
+            Surface(
+              shape = RoundedCornerShape(6.dp),
+              color = MintAccent.copy(alpha = 0.15f)
             ) {
-              Column {
-                Text(
-                  text = order.id,
-                  fontSize = 15.sp,
-                  fontWeight = FontWeight.ExtraBold,
-                  color = IndigoPrimary
-                )
-                Text(
-                  text = order.orderDateFormatted,
-                  fontSize = 11.sp,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-              }
-
-              Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = when (order.status) {
-                  OrderStatus.DELIVERED -> MintAccent.copy(alpha = 0.15f)
-                  OrderStatus.OUT_FOR_DELIVERY -> CoralSecondary.copy(alpha = 0.15f)
-                  else -> IndigoPrimary.copy(alpha = 0.15f)
-                }
-              ) {
-                Text(
-                  text = order.status.label,
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = when (order.status) {
-                    OrderStatus.DELIVERED -> MintAccent
-                    OrderStatus.OUT_FOR_DELIVERY -> CoralSecondary
-                    else -> IndigoPrimary
-                  },
-                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-              }
+              Text(
+                text = "REAL-TIME",
+                fontSize = 9.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MintAccent,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+              )
             }
+          }
+          Spacer(modifier = Modifier.height(8.dp))
+        }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Step Progress Timeline
-            TrackingTimeline(currentStatus = order.status)
-
-            Spacer(modifier = Modifier.height(14.dp))
-            Divider()
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Items breakdown
-            order.items.forEach { cartItem ->
+        items(firestoreOrders, key = { "fs_${it.orderId}" }) { fOrder ->
+          Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 6.dp)
+              .testTag("firestore_order_card_${fOrder.orderId}")
+          ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+              // Top Row: Order ID & Status Badge
               Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .padding(vertical = 3.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
               ) {
-                Row(
-                  verticalAlignment = Alignment.CenterVertically,
-                  modifier = Modifier.weight(1f)
-                ) {
-                  Text(text = cartItem.toy.iconEmoji, fontSize = 18.sp)
-                  Spacer(modifier = Modifier.width(8.dp))
+                Column {
                   Text(
-                    text = "${cartItem.quantity}x ${cartItem.toy.name}",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = "#${fOrder.orderId}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    color = IndigoPrimary
+                  )
+                  Text(
+                    text = fOrder.formattedTime,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                   )
                 }
-                Text(
-                  text = "${cartItem.itemTotalQar.toInt()} QAR",
-                  fontSize = 12.sp,
-                  fontWeight = FontWeight.Bold
-                )
-              }
-            }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            Divider()
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Payment and Ref row
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                  imageVector = if (order.isPaid) Icons.Filled.CheckCircle else Icons.Filled.Payment,
-                  contentDescription = null,
-                  tint = if (order.isPaid) MintAccent else CoralSecondary,
-                  modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                  text = order.paymentMethod,
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = if (order.isPaid) MintAccent else CoralSecondary
-                )
+                Surface(
+                  shape = RoundedCornerShape(8.dp),
+                  color = when (fOrder.status.lowercase()) {
+                    "pending" -> Color(0xFFFFB300)
+                    "packaged" -> Color(0xFF0288D1)
+                    "shipping" -> IndigoPrimary
+                    "delivered" -> MintAccent
+                    else -> Color.Gray
+                  }
+                ) {
+                  Text(
+                    text = fOrder.status.uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                  )
+                }
               }
+
+              Spacer(modifier = Modifier.height(10.dp))
+
+              // Customer & Destination
               Text(
-                text = order.transactionRef,
-                fontSize = 10.sp,
+                text = "${fOrder.customerName} • ${fOrder.address}, ${fOrder.city}",
+                fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+              // Items preview
+              Spacer(modifier = Modifier.height(4.dp))
+              Text(
+                text = fOrder.items.joinToString { "${it.iconEmoji} ${it.name} (x${it.quantity})" },
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
+              )
 
-            // Destination and Total row
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Column {
-                Text(
-                  text = "Destination:",
-                  fontSize = 11.sp,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                  text = order.addressOrStore,
-                  fontSize = 12.sp,
-                  fontWeight = FontWeight.SemiBold,
-                  color = MaterialTheme.colorScheme.onSurface
-                )
-              }
+              Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-              Column(horizontalAlignment = Alignment.End) {
-                Text(
-                  text = "Total Paid:",
-                  fontSize = 11.sp,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                  text = "${order.totalQar.toInt()} QAR",
-                  fontSize = 16.sp,
-                  fontWeight = FontWeight.Black,
-                  color = MaterialTheme.colorScheme.primary
-                )
+              // Bottom Row: Total & Track Button
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Column {
+                  Text(
+                    text = "${fOrder.totalAmount.toInt()} QAR",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.primary
+                  )
+                  Text(
+                    text = fOrder.paymentMethod,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                }
+
+                Button(
+                  onClick = { onTrackFirestoreOrderClick(fOrder) },
+                  shape = RoundedCornerShape(10.dp),
+                  colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
+                  contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                  modifier = Modifier.testTag("track_firestore_order_${fOrder.orderId}")
+                ) {
+                  Icon(Icons.Filled.LocalShipping, contentDescription = null, modifier = Modifier.size(16.dp))
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Text("Track Live Status 📡", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
               }
             }
           }

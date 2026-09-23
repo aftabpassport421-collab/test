@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,6 +57,7 @@ fun WonderToyTopBar(
   onCartClick: () -> Unit,
   onWishlistClick: () -> Unit,
   onLocationClick: (() -> Unit)? = null,
+  onAdminClick: (() -> Unit)? = null,
   modifier: Modifier = Modifier
 ) {
   Surface(
@@ -67,7 +69,8 @@ fun WonderToyTopBar(
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(horizontal = 16.dp, vertical = 8.dp)
+        .statusBarsPadding()
+        .padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
       // Top row: Brand & Actions
       Row(
@@ -127,6 +130,29 @@ fun WonderToyTopBar(
 
         // Action Icons
         Row(verticalAlignment = Alignment.CenterVertically) {
+          if (onAdminClick != null) {
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = IndigoPrimary.copy(alpha = 0.12f),
+              modifier = Modifier
+                .clickable { onAdminClick() }
+                .padding(end = 4.dp)
+                .testTag("topbar_admin_btn")
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+              ) {
+                Text(
+                  text = "Admin 🛠️",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = IndigoPrimary
+                )
+              }
+            }
+          }
+
           // Wishlist Icon
           IconButton(
             onClick = onWishlistClick,

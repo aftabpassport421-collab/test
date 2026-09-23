@@ -1,24 +1,26 @@
 package com.example.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.FirestoreOrderRepository
 import com.example.data.ToyCatalog
 import com.example.model.CartItem
 import com.example.model.DeliveryType
+import com.example.model.FirestoreOrder
+import com.example.model.FirestoreOrderItem
 import com.example.model.Order
 import com.example.model.OrderStatus
 import com.example.model.StoreBranch
 import com.example.model.ToyItem
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 enum class SortOrder(val label: String) {
   POPULAR("Most Popular"),
@@ -45,10 +47,34 @@ data class WonderToyUiState(
   val promoMessage: String? = "10% Wonder discount applied!",
   val deliveryType: DeliveryType = DeliveryType.SAME_DAY_DOHA,
   val selectedStore: StoreBranch = ToyCatalog.branches.first(),
-  val orders: List<Order> = emptyList(),
+  val orders: List<Order> = listOf(
+    Order(
+      id = "WT-90214",
+      items = listOf(CartItem(toy = ToyCatalog.toys[5], quantity = 1)),
+      subtotalQar = 99.0,
+      deliveryFeeQar = 25.0,
+      discountQar = 0.0,
+      totalQar = 124.0,
+      deliveryType = DeliveryType.SAME_DAY_DOHA,
+      customerName = "Fatima Al-Kuwari",
+      phone = "+974 5512 8844",
+      addressOrStore = "Villa 14, West Bay Lagoon",
+      city = "Doha",
+      paymentMethod = "Apple Pay  (Biometric)",
+      orderDateFormatted = "Yesterday, 3:45 PM",
+      status = OrderStatus.DELIVERED,
+      estimatedArrival = "Delivered to reception",
+      transactionRef = "APL-77412",
+      isPaid = true
+    )
+  ),
   val selectedToyDetail: ToyItem? = null,
   val isCheckoutVisible: Boolean = false,
-  val completedOrder: Order? = null
+  val completedOrder: Order? = null,
+  val firestoreOrders: List<FirestoreOrder> = emptyList(),
+  val selectedTrackingOrder: FirestoreOrder? = null,
+  val isAdminViewVisible: Boolean = false,
+  val currentUserId: String = "user_qatar_doha"
 ) {
   val cartSubtotalQar: Double
     get() = cartItems.sumOf { it.itemTotalQar }
@@ -66,145 +92,163 @@ data class WonderToyUiState(
     get() = cartItems.sumOf { it.quantity }
 }
 
-class WonderToyViewModel : ViewModel() {
+class WonderToyViewModel(application: Application) : AndroidViewModel(application) {
 
-  private val _toys = MutableStateFlow(ToyCatalog.toys)
-  private val _selectedCategory = MutableStateFlow("All Categories")
-  private val _selectedAgeGroup = MutableStateFlow("All Ages")
-  private val _selectedBrand = MutableStateFlow("All Brands")
-  private val _searchQuery = MutableStateFlow("")
-  private val _sortOrder = MutableStateFlow(SortOrder.POPULAR)
-  private val _wishlistIds = MutableStateFlow(setOf("toy_01", "toy_06"))
-  private val _cartItems = MutableStateFlow<List<CartItem>>(
-    listOf(
-      CartItem(toy = ToyCatalog.toys[0], quantity = 1, giftWrap = true),
-      CartItem(toy = ToyCatalog.toys[3], quantity = 1, giftWrap = false)
+  private val firestoreRepo = FirestoreOrderRepository.getInstance(application)
+
+  private val _uiState = MutableStateFlow(
+    WonderToyUiState(
+      firestoreOrders = firestoreRepo.getOrdersSync()
     )
   )
-  private val _promoCode = MutableStateFlow("WONDER10")
-  private val _promoDiscountPercent = MutableStateFlow(0.10)
-  private val _promoMessage = MutableStateFlow<String?>("10% Wonder discount applied!")
-  private val _deliveryType = MutableStateFlow(DeliveryType.SAME_DAY_DOHA)
-  private val _selectedStore = MutableStateFlow(ToyCatalog.branches.first())
-  private val _orders = MutableStateFlow<List<Order>>(
-    listOf(
-      Order(
-        id = "WT-90214",
-        items = listOf(CartItem(toy = ToyCatalog.toys[5], quantity = 1)),
-        subtotalQar = 99.0,
-        deliveryFeeQar = 25.0,
-        discountQar = 0.0,
-        totalQar = 124.0,
-        deliveryType = DeliveryType.SAME_DAY_DOHA,
-        customerName = "Fatima Al-Kuwari",
-        phone = "+974 5512 8844",
-        addressOrStore = "Villa 14, West Bay Lagoon",
-        city = "Doha",
-        paymentMethod = "Apple Pay",
-        orderDateFormatted = "Yesterday, 3:45 PM",
-        status = OrderStatus.DELIVERED,
-        estimatedArrival = "Delivered to reception"
-      )
-    )
-  )
-  private val _selectedToyDetail = MutableStateFlow<ToyItem?>(null)
-  private val _isCheckoutVisible = MutableStateFlow(false)
-  private val _completedOrder = MutableStateFlow<Order?>(null)
+  val uiState: StateFlow<WonderToyUiState> = _uiState.asStateFlow()
 
-  val uiState: StateFlow<WonderToyUiState> = combine(
-    combine(_toys, _selectedCategory, _selectedAgeGroup, _selectedBrand, _searchQuery) { toys, cat, age, brand, query ->
-      toys.filter { toy ->
-        val matchesCategory = cat == "All Categories" || toy.category == cat
-        val matchesAge = age == "All Ages" || toy.ageRange == age
-        val matchesBrand = brand == "All Brands" || toy.brand.equals(brand, ignoreCase = true)
-        val matchesQuery = query.isBlank() ||
-          toy.name.contains(query, ignoreCase = true) ||
-          toy.brand.contains(query, ignoreCase = true) ||
-          toy.category.contains(query, ignoreCase = true) ||
-          toy.description.contains(query, ignoreCase = true)
-        matchesCategory && matchesAge && matchesBrand && matchesQuery
+  init {
+    viewModelScope.launch {
+      firestoreRepo.observeOrders().collect { updatedOrders ->
+        _uiState.update { state ->
+          state.copy(
+            firestoreOrders = updatedOrders,
+            selectedTrackingOrder = if (state.selectedTrackingOrder != null) {
+              updatedOrders.find { it.orderId == state.selectedTrackingOrder.orderId } ?: state.selectedTrackingOrder
+            } else null
+          )
+        }
       }
-    },
-    _sortOrder,
-    _wishlistIds,
-    _cartItems,
-    combine(_promoCode, _promoDiscountPercent, _promoMessage, _deliveryType, _selectedStore) { pCode, pDisc, pMsg, deliv, store ->
-      Quint(pCode, pDisc, pMsg, deliv, store)
     }
-  ) { filtered, sort, wishlist, cart, quint ->
-    val sorted = when (sort) {
+  }
+
+  private fun filterAndSortToys(
+    toys: List<ToyItem>,
+    cat: String,
+    age: String,
+    brand: String,
+    query: String,
+    sort: SortOrder
+  ): List<ToyItem> {
+    val filtered = toys.filter { toy ->
+      val matchesCategory = cat == "All Categories" || toy.category == cat
+      val matchesAge = age == "All Ages" || toy.ageRange == age
+      val matchesBrand = brand == "All Brands" || toy.brand.equals(brand, ignoreCase = true)
+      val matchesQuery = query.isBlank() ||
+        toy.name.contains(query, ignoreCase = true) ||
+        toy.brand.contains(query, ignoreCase = true) ||
+        toy.category.contains(query, ignoreCase = true) ||
+        toy.description.contains(query, ignoreCase = true)
+      matchesCategory && matchesAge && matchesBrand && matchesQuery
+    }
+    return when (sort) {
       SortOrder.POPULAR -> filtered.sortedByDescending { it.popularScore }
       SortOrder.PRICE_LOW_HIGH -> filtered.sortedBy { it.priceQar }
       SortOrder.PRICE_HIGH_LOW -> filtered.sortedByDescending { it.priceQar }
       SortOrder.RATING -> filtered.sortedByDescending { it.rating }
     }
-
-    WonderToyUiState(
-      toys = _toys.value,
-      filteredToys = sorted,
-      selectedCategory = _selectedCategory.value,
-      selectedAgeGroup = _selectedAgeGroup.value,
-      selectedBrand = _selectedBrand.value,
-      searchQuery = _searchQuery.value,
-      sortOrder = sort,
-      wishlistIds = wishlist,
-      cartItems = cart,
-      promoCode = quint.first,
-      promoDiscountPercent = quint.second,
-      promoMessage = quint.third,
-      deliveryType = quint.fourth,
-      selectedStore = quint.fifth,
-      orders = _orders.value,
-      selectedToyDetail = _selectedToyDetail.value,
-      isCheckoutVisible = _isCheckoutVisible.value,
-      completedOrder = _completedOrder.value
-    )
-  }.stateIn(
-    scope = viewModelScope,
-    started = SharingStarted.Eagerly,
-    initialValue = WonderToyUiState()
-  )
+  }
 
   fun selectCategory(category: String) {
-    _selectedCategory.value = category
+    _uiState.update { current ->
+      current.copy(
+        selectedCategory = category,
+        filteredToys = filterAndSortToys(
+          current.toys,
+          category,
+          current.selectedAgeGroup,
+          current.selectedBrand,
+          current.searchQuery,
+          current.sortOrder
+        )
+      )
+    }
   }
 
   fun selectAgeGroup(ageGroup: String) {
-    _selectedAgeGroup.value = ageGroup
+    _uiState.update { current ->
+      current.copy(
+        selectedAgeGroup = ageGroup,
+        filteredToys = filterAndSortToys(
+          current.toys,
+          current.selectedCategory,
+          ageGroup,
+          current.selectedBrand,
+          current.searchQuery,
+          current.sortOrder
+        )
+      )
+    }
   }
 
   fun selectBrand(brand: String) {
-    _selectedBrand.value = brand
+    _uiState.update { current ->
+      current.copy(
+        selectedBrand = brand,
+        filteredToys = filterAndSortToys(
+          current.toys,
+          current.selectedCategory,
+          current.selectedAgeGroup,
+          brand,
+          current.searchQuery,
+          current.sortOrder
+        )
+      )
+    }
   }
 
   fun setSearchQuery(query: String) {
-    _searchQuery.value = query
+    _uiState.update { current ->
+      current.copy(
+        searchQuery = query,
+        filteredToys = filterAndSortToys(
+          current.toys,
+          current.selectedCategory,
+          current.selectedAgeGroup,
+          current.selectedBrand,
+          query,
+          current.sortOrder
+        )
+      )
+    }
   }
 
   fun setSortOrder(sortOrder: SortOrder) {
-    _sortOrder.value = sortOrder
+    _uiState.update { current ->
+      current.copy(
+        sortOrder = sortOrder,
+        filteredToys = filterAndSortToys(
+          current.toys,
+          current.selectedCategory,
+          current.selectedAgeGroup,
+          current.selectedBrand,
+          current.searchQuery,
+          sortOrder
+        )
+      )
+    }
   }
 
   fun toggleWishlist(toyId: String) {
-    val current = _wishlistIds.value.toMutableSet()
-    if (current.contains(toyId)) {
-      current.remove(toyId)
-    } else {
-      current.add(toyId)
+    _uiState.update { current ->
+      val updated = current.wishlistIds.toMutableSet()
+      if (updated.contains(toyId)) {
+        updated.remove(toyId)
+      } else {
+        updated.add(toyId)
+      }
+      current.copy(wishlistIds = updated)
     }
-    _wishlistIds.value = current
   }
 
   fun addToCart(toy: ToyItem, giftWrap: Boolean = false) {
-    val current = _cartItems.value.toMutableList()
-    val index = current.indexOfFirst { it.toy.id == toy.id }
-    if (index >= 0) {
-      val existing = current[index]
-      current[index] = existing.copy(quantity = existing.quantity + 1)
-    } else {
-      current.add(CartItem(toy = toy, quantity = 1, giftWrap = giftWrap))
+    _uiState.update { current ->
+      val mutable = current.cartItems.toMutableList()
+      val index = mutable.indexOfFirst { it.toy.id == toy.id }
+      if (index >= 0) {
+        val existing = mutable[index]
+        mutable[index] = existing.copy(quantity = existing.quantity + 1)
+      } else {
+        mutable.add(CartItem(toy = toy, quantity = 1, giftWrap = giftWrap))
+      }
+      current.copy(cartItems = mutable)
     }
-    _cartItems.value = current
   }
 
   fun updateCartQuantity(toyId: String, newQty: Int) {
@@ -212,76 +256,73 @@ class WonderToyViewModel : ViewModel() {
       removeFromCart(toyId)
       return
     }
-    val current = _cartItems.value.toMutableList()
-    val index = current.indexOfFirst { it.toy.id == toyId }
-    if (index >= 0) {
-      current[index] = current[index].copy(quantity = newQty)
-      _cartItems.value = current
+    _uiState.update { current ->
+      val mutable = current.cartItems.toMutableList()
+      val index = mutable.indexOfFirst { it.toy.id == toyId }
+      if (index >= 0) {
+        mutable[index] = mutable[index].copy(quantity = newQty)
+      }
+      current.copy(cartItems = mutable)
     }
   }
 
   fun toggleGiftWrap(toyId: String) {
-    val current = _cartItems.value.toMutableList()
-    val index = current.indexOfFirst { it.toy.id == toyId }
-    if (index >= 0) {
-      current[index] = current[index].copy(giftWrap = !current[index].giftWrap)
-      _cartItems.value = current
+    _uiState.update { current ->
+      val mutable = current.cartItems.toMutableList()
+      val index = mutable.indexOfFirst { it.toy.id == toyId }
+      if (index >= 0) {
+        mutable[index] = mutable[index].copy(giftWrap = !mutable[index].giftWrap)
+      }
+      current.copy(cartItems = mutable)
     }
   }
 
   fun removeFromCart(toyId: String) {
-    _cartItems.value = _cartItems.value.filter { it.toy.id != toyId }
+    _uiState.update { current ->
+      current.copy(cartItems = current.cartItems.filter { it.toy.id != toyId })
+    }
   }
 
   fun clearCart() {
-    _cartItems.value = emptyList()
+    _uiState.update { current -> current.copy(cartItems = emptyList()) }
   }
 
   fun applyPromo(code: String) {
     val trimmed = code.trim().uppercase(Locale.ROOT)
-    _promoCode.value = trimmed
-    when (trimmed) {
-      "WONDER10" -> {
-        _promoDiscountPercent.value = 0.10
-        _promoMessage.value = "10% Wonder discount applied!"
-      }
-      "QATAR" -> {
-        _promoDiscountPercent.value = 0.15
-        _promoMessage.value = "15% Qatar National celebration discount!"
-      }
-      "TOYVIP" -> {
-        _promoDiscountPercent.value = 0.20
-        _promoMessage.value = "20% VIP Toy Master discount applied!"
-      }
-      "" -> {
-        _promoDiscountPercent.value = 0.0
-        _promoMessage.value = null
-      }
-      else -> {
-        _promoDiscountPercent.value = 0.0
-        _promoMessage.value = "Invalid promo code. Try WONDER10 or QATAR"
-      }
+    val (discountPercent, message) = when (trimmed) {
+      "WONDER10" -> Pair(0.10, "10% Wonder discount applied!")
+      "QATAR" -> Pair(0.15, "15% Qatar National celebration discount!")
+      "TOYVIP" -> Pair(0.20, "20% VIP Toy Master discount applied!")
+      "" -> Pair(0.0, null)
+      else -> Pair(0.0, "Invalid promo code. Try WONDER10 or QATAR")
+    }
+    _uiState.update { current ->
+      current.copy(
+        promoCode = trimmed,
+        promoDiscountPercent = discountPercent,
+        promoMessage = message
+      )
     }
   }
 
   fun setDeliveryType(type: DeliveryType) {
-    _deliveryType.value = type
+    _uiState.update { current -> current.copy(deliveryType = type) }
   }
 
   fun setSelectedStore(store: StoreBranch) {
-    _selectedStore.value = store
+    _uiState.update { current -> current.copy(selectedStore = store) }
   }
 
   fun showToyDetail(toy: ToyItem?) {
-    _selectedToyDetail.value = toy
+    _uiState.update { current -> current.copy(selectedToyDetail = toy) }
   }
 
   fun showCheckout(show: Boolean) {
-    _isCheckoutVisible.value = show
+    _uiState.update { current -> current.copy(isCheckoutVisible = show) }
   }
 
   fun dismissOrderSuccess() {
-    _completedOrder.value = null
+    _uiState.update { current -> current.copy(completedOrder = null) }
   }
 
   fun placeOrder(
@@ -291,11 +332,12 @@ class WonderToyViewModel : ViewModel() {
     city: String,
     paymentMethod: String
   ): Order {
-    val currentCart = _cartItems.value
-    val subtotal = currentCart.sumOf { it.itemTotalQar }
-    val discount = subtotal * _promoDiscountPercent.value
-    val deliveryFee = if (currentCart.isEmpty()) 0.0 else _deliveryType.value.priceQar
-    val total = (subtotal - discount + deliveryFee).coerceAtLeast(0.0)
+    val current = _uiState.value
+    val currentCart = current.cartItems
+    val subtotal = current.cartSubtotalQar
+    val discount = current.discountAmountQar
+    val deliveryFee = current.deliveryFeeQar
+    val total = current.finalTotalQar
 
     val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
     val currentDateStr = dateFormat.format(Date())
@@ -318,7 +360,7 @@ class WonderToyViewModel : ViewModel() {
       deliveryFeeQar = deliveryFee,
       discountQar = discount,
       totalQar = total,
-      deliveryType = _deliveryType.value,
+      deliveryType = current.deliveryType,
       customerName = customerName,
       phone = phone,
       addressOrStore = locationText,
@@ -326,23 +368,56 @@ class WonderToyViewModel : ViewModel() {
       paymentMethod = paymentMethod,
       orderDateFormatted = currentDateStr,
       status = OrderStatus.CONFIRMED,
-      estimatedArrival = _deliveryType.value.eta,
+      estimatedArrival = current.deliveryType.eta,
       transactionRef = txnCode,
       isPaid = isPaid
     )
 
-    _orders.value = listOf(order) + _orders.value
-    _cartItems.value = emptyList()
-    _isCheckoutVisible.value = false
-    _completedOrder.value = order
+    // Also persist to Firebase Firestore collection "orders"
+    val firestoreOrder = FirestoreOrder(
+      orderId = randomId,
+      userId = current.currentUserId,
+      items = currentCart.map { cItem ->
+        FirestoreOrderItem(
+          toyId = cItem.toy.id,
+          name = cItem.toy.name,
+          quantity = cItem.quantity,
+          priceQar = cItem.toy.priceQar,
+          iconEmoji = cItem.toy.iconEmoji
+        )
+      },
+      totalAmount = total,
+      status = "pending",
+      timestamp = System.currentTimeMillis(),
+      customerName = customerName,
+      phone = phone,
+      address = addressOrArea,
+      city = city,
+      paymentMethod = paymentMethod
+    )
+    firestoreRepo.saveOrder(firestoreOrder)
+
+    _uiState.update { state ->
+      state.copy(
+        orders = listOf(order) + state.orders,
+        cartItems = emptyList(),
+        isCheckoutVisible = false,
+        completedOrder = order
+      )
+    }
+
     return order
   }
-}
 
-data class Quint<A, B, C, D, E>(
-  val first: A,
-  val second: B,
-  val third: C,
-  val fourth: D,
-  val fifth: E
-)
+  fun updateOrderStatus(orderId: String, newStatus: String) {
+    firestoreRepo.updateOrderStatus(orderId, newStatus)
+  }
+
+  fun showOrderTracking(order: FirestoreOrder?) {
+    _uiState.update { it.copy(selectedTrackingOrder = order) }
+  }
+
+  fun showAdminView(show: Boolean) {
+    _uiState.update { it.copy(isAdminViewVisible = show) }
+  }
+}

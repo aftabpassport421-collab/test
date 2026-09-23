@@ -181,15 +181,12 @@ fun OrderSuccessDialog(
     },
     confirmButton = {
       Button(
-        onClick = {
-          onDismiss()
-          onViewOrders()
-        },
+        onClick = onViewOrders,
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
         modifier = Modifier.testTag("success_view_orders_btn")
       ) {
-        Text("Track Order")
+        Text("Track Order 📦")
       }
     },
     dismissButton = {

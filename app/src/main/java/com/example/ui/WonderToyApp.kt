@@ -21,6 +21,7 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
@@ -41,9 +42,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.model.DeliveryType
+import com.example.model.FirestoreOrder
 import com.example.model.StoreBranch
 import com.example.model.ToyItem
 import com.example.ui.components.WonderToyTopBar
+import com.example.ui.screens.AdminOrdersScreen
+import com.example.ui.screens.OrderTrackingScreen
+import com.example.ui.screens.PaymentScreen
 import com.example.ui.dialogs.CheckoutDialog
 import com.example.ui.dialogs.OrderSuccessDialog
 import com.example.ui.dialogs.ToyDetailDialog
@@ -105,6 +110,9 @@ fun WonderToyApp(
     onPlaceOrder = { name, phone, address, city, payment ->
       viewModel.placeOrder(name, phone, address, city, payment)
     },
+    onShowAdminView = { show -> viewModel.showAdminView(show) },
+    onShowOrderTracking = { order -> viewModel.showOrderTracking(order) },
+    onUpdateOrderStatus = { orderId, status -> viewModel.updateOrderStatus(orderId, status) },
     modifier = modifier
   )
 }
@@ -130,32 +138,72 @@ fun WonderToyAppContent(
   onShowCheckout: (Boolean) -> Unit = {},
   onDismissOrderSuccess: () -> Unit = {},
   onPlaceOrder: (String, String, String, String, String) -> Unit = { _, _, _, _, _ -> },
+  onShowAdminView: (Boolean) -> Unit = {},
+  onShowOrderTracking: (FirestoreOrder?) -> Unit = {},
+  onUpdateOrderStatus: (String, String) -> Unit = { _, _ -> },
   modifier: Modifier = Modifier
 ) {
   var currentTab by rememberSaveable { mutableStateOf(BottomTab.HOME) }
 
-  Scaffold(
-    topBar = {
-      WonderToyTopBar(
-        searchQuery = uiState.searchQuery,
-        onSearchQueryChange = {
-          onSearchQueryChange(it)
-          if (it.isNotEmpty() && currentTab != BottomTab.CATALOG) {
-            currentTab = BottomTab.CATALOG
-          }
-        },
-        cartItemCount = uiState.totalCartItemCount,
-        wishlistCount = uiState.wishlistIds.size,
-        onCartClick = { currentTab = BottomTab.CART },
-        onWishlistClick = { currentTab = BottomTab.WISHLIST },
-        onLocationClick = null
-      )
-    },
-    bottomBar = {
+  if (uiState.isAdminViewVisible) {
+    AdminOrdersScreen(
+      orders = uiState.firestoreOrders,
+      onUpdateStatus = { orderId, status -> onUpdateOrderStatus(orderId, status) },
+      onViewOrderTracking = { order -> onShowOrderTracking(order) },
+      onBackToStore = { onShowAdminView(false) },
+      modifier = modifier.fillMaxSize()
+    )
+  } else if (uiState.selectedTrackingOrder != null) {
+    OrderTrackingScreen(
+      order = uiState.selectedTrackingOrder,
+      onBackClick = { onShowOrderTracking(null) },
+      onUpdateStatusTest = { status -> onUpdateOrderStatus(uiState.selectedTrackingOrder.orderId, status) },
+      onOpenAdminView = {
+        onShowOrderTracking(null)
+        onShowAdminView(true)
+      },
+      modifier = modifier.fillMaxSize()
+    )
+  } else if (uiState.isCheckoutVisible) {
+    PaymentScreen(
+      cartItems = uiState.cartItems,
+      subtotalQar = uiState.cartSubtotalQar,
+      deliveryFeeQar = uiState.deliveryFeeQar,
+      discountQar = uiState.discountAmountQar,
+      finalTotalQar = uiState.finalTotalQar,
+      currentDeliveryType = uiState.deliveryType,
+      onDeliveryTypeChange = { onSetDeliveryType(it) },
+      onBackClick = { onShowCheckout(false) },
+      onConfirmOrder = { name, phone, address, city, payment ->
+        currentTab = BottomTab.ORDERS
+        onPlaceOrder(name, phone, address, city, payment)
+      },
+      modifier = modifier.fillMaxSize()
+    )
+  } else {
+    Scaffold(
+      topBar = {
+        WonderToyTopBar(
+          searchQuery = uiState.searchQuery,
+          onSearchQueryChange = {
+            onSearchQueryChange(it)
+            if (it.isNotEmpty() && currentTab != BottomTab.CATALOG) {
+              currentTab = BottomTab.CATALOG
+            }
+          },
+          cartItemCount = uiState.totalCartItemCount,
+          wishlistCount = uiState.wishlistIds.size,
+          onCartClick = { currentTab = BottomTab.CART },
+          onWishlistClick = { currentTab = BottomTab.WISHLIST },
+          onAdminClick = { onShowAdminView(true) },
+          onLocationClick = null
+        )
+      },
+      bottomBar = {
       NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 4.dp,
-        windowInsets = WindowInsets.navigationBars,
+        windowInsets = NavigationBarDefaults.windowInsets,
         modifier = Modifier.testTag("bottom_nav_bar")
       ) {
         BottomTab.values().forEach { tab ->
@@ -299,7 +347,10 @@ fun WonderToyAppContent(
         BottomTab.ORDERS -> {
           OrdersScreen(
             orders = uiState.orders,
-            onShopToysClick = { currentTab = BottomTab.CATALOG }
+            firestoreOrders = uiState.firestoreOrders,
+            onShopToysClick = { currentTab = BottomTab.CATALOG },
+            onTrackFirestoreOrderClick = { order -> onShowOrderTracking(order) },
+            onOpenAdminClick = { onShowAdminView(true) }
           )
         }
       }
@@ -321,35 +372,25 @@ fun WonderToyAppContent(
         )
       }
 
-      // Dialog 2: Checkout Bottom Sheet
-      if (uiState.isCheckoutVisible) {
-        CheckoutDialog(
-          subtotalQar = uiState.cartSubtotalQar,
-          deliveryFeeQar = uiState.deliveryFeeQar,
-          discountQar = uiState.discountAmountQar,
-          finalTotalQar = uiState.finalTotalQar,
-          currentDeliveryType = uiState.deliveryType,
-          onDeliveryTypeChange = { onSetDeliveryType(it) },
-          onDismiss = { onShowCheckout(false) },
-          onConfirmOrder = { name, phone, address, city, payment ->
-            onPlaceOrder(name, phone, address, city, payment)
-          }
-        )
-      }
-
-      // Dialog 3: Order Success Celebration Dialog
+      // Dialog 2: Order Success Celebration Dialog
       uiState.completedOrder?.let { order ->
         OrderSuccessDialog(
           order = order,
           onDismiss = { onDismissOrderSuccess() },
           onViewOrders = {
             onDismissOrderSuccess()
-            currentTab = BottomTab.ORDERS
+            val matchingFsOrder = uiState.firestoreOrders.firstOrNull { it.orderId == order.id }
+            if (matchingFsOrder != null) {
+              onShowOrderTracking(matchingFsOrder)
+            } else {
+              currentTab = BottomTab.ORDERS
+            }
           }
         )
       }
     }
   }
+}
 }
 
 @Preview(showBackground = true)
