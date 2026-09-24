@@ -62,7 +62,6 @@ fun ProfileScreen(
   user: UserProfile,
   onOpenAuthDialog: () -> Unit,
   onViewOrders: () -> Unit,
-  onOpenAdminClick: () -> Unit = {},
   onLogout: () -> Unit,
   modifier: Modifier = Modifier
 ) {
@@ -329,29 +328,6 @@ fun ProfileScreen(
               Column {
                 Text("My Orders & Live Qatar Tracking", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Text("Real-time Firestore dispatch updates", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-              }
-            }
-            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.Gray)
-          }
-
-          Divider()
-
-          // Merchant & Admin Portal (Manage Products & Orders)
-          Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .clickable { onOpenAdminClick() }
-              .padding(12.dp)
-              .testTag("profile_admin_portal_btn"),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              Icon(Icons.Filled.Storefront, contentDescription = null, tint = CoralSecondary, modifier = Modifier.size(20.dp))
-              Spacer(modifier = Modifier.width(12.dp))
-              Column {
-                Text("Merchant & Admin Portal 🛠️", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CoralSecondary)
-                Text("Add/manage products & update order statuses", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
               }
             }
             Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.Gray)

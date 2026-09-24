@@ -76,13 +76,9 @@ data class WonderToyUiState(
   val completedOrder: Order? = null,
   val firestoreOrders: List<FirestoreOrder> = emptyList(),
   val selectedTrackingOrder: FirestoreOrder? = null,
-  val isAdminViewVisible: Boolean = false,
-  val isAdminLoginDialogVisible: Boolean = false,
   val currentUserId: String = "user_qatar_doha",
   val userProfile: UserProfile = UserProfile(),
-  val appMode: AppRoleMode = AppRoleMode.CUSTOMER,
-  val isAuthDialogVisible: Boolean = false,
-  val isModeSelectorVisible: Boolean = false
+  val isAuthDialogVisible: Boolean = false
 ) {
   val cartSubtotalQar: Double
     get() = cartItems.sumOf { it.itemTotalQar }
@@ -447,36 +443,6 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
 
   fun showOrderTracking(order: FirestoreOrder?) {
     _uiState.update { it.copy(selectedTrackingOrder = order) }
-  }
-
-  fun showAdminView(show: Boolean) {
-    _uiState.update { it.copy(isAdminViewVisible = show) }
-  }
-
-  fun showAdminLoginDialog(show: Boolean) {
-    _uiState.update { it.copy(isAdminLoginDialogVisible = show) }
-  }
-
-  fun verifyAdminPasscode(passcode: String): Boolean {
-    // Default admin passcode: 9740 (Qatar country code + 0) or admin123
-    if (passcode.trim() == "9740" || passcode.trim() == "admin123") {
-      _uiState.update { it.copy(isAdminLoginDialogVisible = false, isAdminViewVisible = true) }
-      return true
-    }
-    return false
-  }
-
-  fun setAppMode(mode: AppRoleMode) {
-    _uiState.update {
-      it.copy(
-        appMode = mode,
-        isAdminViewVisible = (mode == AppRoleMode.ADMIN)
-      )
-    }
-  }
-
-  fun showModeSelector(show: Boolean) {
-    _uiState.update { it.copy(isModeSelectorVisible = show) }
   }
 
   fun showAuthDialog(show: Boolean) {

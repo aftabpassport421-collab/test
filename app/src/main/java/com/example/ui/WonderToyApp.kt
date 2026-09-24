@@ -49,7 +49,6 @@ import com.example.model.StoreBranch
 import com.example.model.ToyItem
 import com.example.model.UserProfile
 import com.example.ui.components.WonderToyTopBar
-import com.example.ui.dialogs.AdminLoginDialog
 import com.example.ui.dialogs.CheckoutDialog
 import com.example.ui.dialogs.OrderSuccessDialog
 import com.example.ui.dialogs.QatarRegistrationDialog
@@ -118,9 +117,6 @@ fun WonderToyApp(
     },
     onShowOrderTracking = { order -> viewModel.showOrderTracking(order) },
     onUpdateOrderStatus = { orderId, status -> viewModel.updateOrderStatus(orderId, status) },
-    onShowAdminView = { show -> viewModel.showAdminView(show) },
-    onShowAdminLoginDialog = { show -> viewModel.showAdminLoginDialog(show) },
-    onVerifyAdminPasscode = { passcode -> viewModel.verifyAdminPasscode(passcode) },
     onShowAuthDialog = { show -> viewModel.showAuthDialog(show) },
     onUpdateUserProfile = { profile -> viewModel.updateUserProfile(profile) },
     onLogoutUser = { viewModel.logoutUser() },
@@ -151,9 +147,6 @@ fun WonderToyAppContent(
   onPlaceOrder: (String, String, String, String, String) -> Unit = { _, _, _, _, _ -> },
   onShowOrderTracking: (FirestoreOrder?) -> Unit = {},
   onUpdateOrderStatus: (String, String) -> Unit = { _, _ -> },
-  onShowAdminView: (Boolean) -> Unit = {},
-  onShowAdminLoginDialog: (Boolean) -> Unit = {},
-  onVerifyAdminPasscode: (String) -> Boolean = { false },
   onShowAuthDialog: (Boolean) -> Unit = {},
   onUpdateUserProfile: (UserProfile) -> Unit = {},
   onLogoutUser: () -> Unit = {},
@@ -161,15 +154,8 @@ fun WonderToyAppContent(
 ) {
   var currentTab by rememberSaveable { mutableStateOf(BottomTab.HOME) }
 
-  // 0. Admin & Merchant Portal View
-  if (uiState.isAdminViewVisible) {
-    AdminApp(
-      onBackClick = { onShowAdminView(false) },
-      modifier = modifier.fillMaxSize()
-    )
-  }
   // 1. Real-Time Tracking View
-  else if (uiState.selectedTrackingOrder != null) {
+  if (uiState.selectedTrackingOrder != null) {
     OrderTrackingScreen(
       order = uiState.selectedTrackingOrder,
       onBackClick = { onShowOrderTracking(null) },
@@ -382,7 +368,6 @@ fun WonderToyAppContent(
               user = uiState.userProfile,
               onOpenAuthDialog = { onShowAuthDialog(true) },
               onViewOrders = { currentTab = BottomTab.ORDERS },
-              onOpenAdminClick = { onShowAdminLoginDialog(true) },
               onLogout = { onLogoutUser() }
             )
           }
@@ -429,16 +414,6 @@ fun WonderToyAppContent(
             onDismiss = { onShowAuthDialog(false) },
             onRegistrationComplete = { updatedProfile ->
               onUpdateUserProfile(updatedProfile)
-            }
-          )
-        }
-
-        // Dialog 4: Admin Passcode Login Dialog
-        if (uiState.isAdminLoginDialogVisible) {
-          AdminLoginDialog(
-            onDismiss = { onShowAdminLoginDialog(false) },
-            onVerifyPasscode = { passcode ->
-              onVerifyAdminPasscode(passcode)
             }
           )
         }
