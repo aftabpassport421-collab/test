@@ -185,21 +185,32 @@ class FirestoreOrderRepository private constructor(context: Context) {
     // 2. Upload to Firestore
     val firestore = firestoreInstance
     if (firestore != null) {
-      try {
-        firestore.collection("orders")
-          .document(order.orderId)
-          .set(order.toMap())
-          .addOnSuccessListener {
-            Log.d(tag, "Order ${order.orderId} saved to Firestore successfully")
-            onComplete?.invoke(true)
-          }
-          .addOnFailureListener { err ->
-            Log.w(tag, "Order saved locally; Firestore sync pending: ${err.message}")
-            onComplete?.invoke(true)
-          }
-      } catch (e: Exception) {
-        Log.w(tag, "Firestore write exception: ${e.message}")
-        onComplete?.invoke(true)
+      val auth = FirebaseAuth.getInstance()
+      val performSave = {
+        try {
+          firestore.collection("orders")
+            .document(order.orderId)
+            .set(order.toMap())
+            .addOnSuccessListener {
+              Log.d(tag, "Order ${order.orderId} saved to Firestore successfully")
+              onComplete?.invoke(true)
+            }
+            .addOnFailureListener { err ->
+              Log.w(tag, "Order saved locally; Firestore sync pending: ${err.message}")
+              onComplete?.invoke(true)
+            }
+        } catch (e: Exception) {
+          Log.w(tag, "Firestore write exception: ${e.message}")
+          onComplete?.invoke(true)
+        }
+      }
+
+      if (auth.currentUser == null) {
+        auth.signInAnonymously().addOnCompleteListener { 
+          performSave()
+        }
+      } else {
+        performSave()
       }
     } else {
       onComplete?.invoke(true)
@@ -257,6 +268,24 @@ class FirestoreOrderRepository private constructor(context: Context) {
     val firestore = firestoreInstance
 
     if (firestore != null) {
+      // One-time fetch to guarantee immediate population
+      firestore.collection("orders")
+        .get()
+        .addOnSuccessListener { snapshot ->
+          if (snapshot != null && !snapshot.isEmpty) {
+            val firestoreList = snapshot.documents.mapNotNull { doc ->
+              val data = doc.data
+              if (data != null) FirestoreOrder.fromMap(doc.id, data) else null
+            }
+            firestoreList.forEach { fOrder ->
+              val idx = cachedOrders.indexOfFirst { it.orderId == fOrder.orderId }
+              if (idx >= 0) cachedOrders[idx] = fOrder else cachedOrders.add(fOrder)
+            }
+            cachedOrders.sortByDescending { it.timestamp }
+            trySend(cachedOrders.toList())
+          }
+        }
+
       try {
         listener = firestore.collection("orders")
           .orderBy("timestamp", Query.Direction.DESCENDING)
@@ -308,6 +337,52 @@ class FirestoreOrderRepository private constructor(context: Context) {
     val firestore = firestoreInstance
 
     if (firestore != null) {
+      // One-time fetch to guarantee immediate product sync
+      firestore.collection("products")
+        .get()
+        .addOnSuccessListener { snapshot ->
+          if (snapshot != null && !snapshot.isEmpty) {
+            val firestoreProducts = snapshot.documents.mapNotNull { doc ->
+              val data = doc.data
+              if (data != null) {
+                val name = data["name"] as? String ?: "Toy"
+                val category = data["category"] as? String ?: "Building Toys"
+                val ageRange = data["ageGroup"] as? String ?: "3-6 years"
+                val price = (data["price"] as? Number)?.toDouble() ?: 20.0
+                val stock = (data["stockQuantity"] as? Number)?.toInt() ?: 10
+                val desc = data["description"] as? String ?: ""
+                val brand = data["brand"] as? String ?: "LEGO"
+
+                ToyItem(
+                  id = doc.id,
+                  name = name,
+                  brand = brand,
+                  category = category,
+                  ageRange = ageRange,
+                  priceQar = price,
+                  originalPriceQar = price * 1.2,
+                  rating = 4.8,
+                  reviewsCount = 15,
+                  badge = "New",
+                  description = desc.ifBlank { "High quality toy from Wonder Toy Store." },
+                  features = listOf("Tested safe for kids", "Official Wonder Toy Product"),
+                  inStock = stock > 0,
+                  popularScore = 95,
+                  iconEmoji = "🧸"
+                )
+              } else null
+            }
+
+            if (firestoreProducts.isNotEmpty()) {
+              firestoreProducts.forEach { fProduct ->
+                val idx = cachedProducts.indexOfFirst { it.id == fProduct.id }
+                if (idx >= 0) cachedProducts[idx] = fProduct else cachedProducts.add(0, fProduct)
+              }
+              trySend(cachedProducts.toList())
+            }
+          }
+        }
+
       try {
         listener = firestore.collection("products")
           .addSnapshotListener { snapshot, error ->
@@ -327,11 +402,12 @@ class FirestoreOrderRepository private constructor(context: Context) {
                   val price = (data["price"] as? Number)?.toDouble() ?: 20.0
                   val stock = (data["stockQuantity"] as? Number)?.toInt() ?: 10
                   val desc = data["description"] as? String ?: ""
+                  val brand = data["brand"] as? String ?: "LEGO"
 
                   ToyItem(
                     id = doc.id,
                     name = name,
-                    brand = "LEGO",
+                    brand = brand,
                     category = category,
                     ageRange = ageRange,
                     priceQar = price,
