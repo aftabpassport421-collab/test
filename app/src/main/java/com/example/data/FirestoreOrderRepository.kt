@@ -7,6 +7,7 @@ import com.example.model.FirestoreOrderItem
 import com.example.model.ToyItem
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
@@ -53,6 +54,17 @@ class FirestoreOrderRepository private constructor(context: Context) {
       }
       firestoreInstance = FirebaseFirestore.getInstance()
       Log.d(tag, "FirebaseFirestore instance acquired successfully")
+      
+      val auth = FirebaseAuth.getInstance()
+      if (auth.currentUser == null) {
+        auth.signInAnonymously()
+          .addOnSuccessListener {
+            Log.d(tag, "Firebase anonymous auth successful: ${it.user?.uid}")
+          }
+          .addOnFailureListener { err ->
+            Log.w(tag, "Firebase anonymous auth failed: ${err.message}")
+          }
+      }
     } catch (e: Throwable) {
       Log.w(tag, "Firebase initialization notice: ${e.message}. Running in offline cache mode.")
     }
