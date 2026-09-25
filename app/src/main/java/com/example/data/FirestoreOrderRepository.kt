@@ -7,7 +7,6 @@ import com.example.model.FirestoreOrderItem
 import com.example.model.ToyItem
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
@@ -50,23 +49,11 @@ class FirestoreOrderRepository private constructor(context: Context) {
           .setApiKey("AIzaSyDwO-KhRmpP3Rv0PyYCxjxh6755eGZf_Jc")
           .build()
         FirebaseApp.initializeApp(context, options)
-        Log.d(tag, "FirebaseApp initialized with fallback options")
+        Log.d(tag, "FirebaseApp initialized with explicit options")
       }
       firestoreInstance = FirebaseFirestore.getInstance()
-      Log.d(tag, "FirebaseFirestore instance acquired successfully")
-      
-      val auth = FirebaseAuth.getInstance()
-      if (auth.currentUser == null) {
-        auth.signInAnonymously()
-          .addOnSuccessListener {
-            Log.d(tag, "Firebase anonymous auth successful: ${it.user?.uid}")
-          }
-          .addOnFailureListener { err ->
-            Log.w(tag, "Firebase anonymous auth failed: ${err.message}")
-          }
-      }
     } catch (e: Throwable) {
-      Log.w(tag, "Firebase initialization notice: ${e.message}. Running in offline cache mode.")
+      Log.e(tag, "Firebase initialization error: ${e.message}", e)
     }
   }
 
@@ -174,7 +161,7 @@ class FirestoreOrderRepository private constructor(context: Context) {
    * Save or upload an order to Firestore "orders" collection
    */
   fun saveOrder(order: FirestoreOrder, onComplete: ((Boolean) -> Unit)? = null) {
-    // 1. Update local cache immediately
+    // 1. Update local cache
     val existingIndex = cachedOrders.indexOfFirst { it.orderId == order.orderId }
     if (existingIndex >= 0) {
       cachedOrders[existingIndex] = order
@@ -182,45 +169,48 @@ class FirestoreOrderRepository private constructor(context: Context) {
       cachedOrders.add(0, order)
     }
 
-    // 2. Upload to Firestore
-    val firestore = firestoreInstance ?: try {
-      FirebaseFirestore.getInstance().also { firestoreInstance = it }
-    } catch (e: Exception) {
-      null
-    }
+    val firestore = firestoreInstance ?: FirebaseFirestore.getInstance().also { firestoreInstance = it }
 
-    if (firestore != null) {
-      val auth = FirebaseAuth.getInstance()
-      val performSave = {
-        try {
-          firestore.collection("orders")
-            .document(order.orderId)
-            .set(order.toMap())
-            .addOnSuccessListener {
-              Log.d(tag, "Order ${order.orderId} successfully synced to Firestore collection 'orders'")
-              onComplete?.invoke(true)
-            }
-            .addOnFailureListener { err ->
-              Log.e(tag, "Firestore order sync failed for ${order.orderId}: ${err.message}", err)
-              // Retry once or allow local cache fallback
-              onComplete?.invoke(true)
-            }
-        } catch (e: Exception) {
-          Log.e(tag, "Firestore order write exception: ${e.message}", e)
-          onComplete?.invoke(true)
-        }
+    firestore.collection("orders")
+      .document(order.orderId)
+      .set(order.toMap())
+      .addOnSuccessListener {
+        Log.d(tag, "Order ${order.orderId} successfully written to Firestore!")
+        onComplete?.invoke(true)
       }
+      .addOnFailureListener { err ->
+        Log.e(tag, "Firestore Order Write Failed: ${err.message}", err)
+        onComplete?.invoke(false)
+      }
+  }
 
-      if (auth.currentUser == null) {
-        auth.signInAnonymously().addOnCompleteListener { 
-          performSave()
-        }
-      } else {
-        performSave()
-      }
-    } else {
-      Log.w(tag, "Firestore instance is null, order saved to local memory only")
-      onComplete?.invoke(true)
+  /**
+   * Explicitly create 'test31' order in Firestore 'orders' collection as requested by user
+   */
+  fun createTestOrderCollectionForce(onComplete: (Boolean, String) -> Unit) {
+    val testOrder = FirestoreOrder(
+      orderId = "test31",
+      userId = "user_qatar_doha",
+      items = listOf(
+        FirestoreOrderItem(
+          toyId = "toy_01",
+          name = "Wonder Lego Lusail Stadium",
+          quantity = 1,
+          priceQar = 340.0,
+          iconEmoji = "🏟️"
+        )
+      ),
+      totalAmount = 340.0,
+      status = "pending",
+      timestamp = System.currentTimeMillis(),
+      customerName = "Hamad Al-Thani",
+      phone = "+974 5588 9900",
+      address = "Lusail Marina Tower B, Doha",
+      city = "Doha",
+      paymentMethod = "Apple Pay  (Biometric)"
+    )
+    saveOrder(testOrder) { success ->
+      onComplete(success, "test31")
     }
   }
 

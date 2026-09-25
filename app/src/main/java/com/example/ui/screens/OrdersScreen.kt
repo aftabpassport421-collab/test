@@ -58,6 +58,7 @@ fun OrdersScreen(
   firestoreOrders: List<FirestoreOrder> = emptyList(),
   onShopToysClick: () -> Unit,
   onTrackFirestoreOrderClick: (FirestoreOrder) -> Unit = {},
+  onCreateFirestoreOrderClick: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val hasAnyOrders = orders.isNotEmpty() || firestoreOrders.isNotEmpty()
@@ -99,6 +100,14 @@ fun OrdersScreen(
         modifier = Modifier.testTag("orders_shop_btn")
       ) {
         Text("Shop Wonder Toy")
+      }
+      Spacer(modifier = Modifier.height(10.dp))
+      OutlinedButton(
+        onClick = onCreateFirestoreOrderClick,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.testTag("create_test31_order_btn")
+      ) {
+        Text("Create 'test31' Order in Firestore 📡")
       }
     }
   } else {
@@ -142,6 +151,15 @@ fun OrdersScreen(
               modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
           }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Button(
+          onClick = onCreateFirestoreOrderClick,
+          shape = RoundedCornerShape(10.dp),
+          colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
+          modifier = Modifier.fillMaxWidth().testTag("create_test31_order_btn_header")
+        ) {
+          Text("Create 'test31' Order in Firestore Collection 📡")
         }
         Spacer(modifier = Modifier.height(14.dp))
       }

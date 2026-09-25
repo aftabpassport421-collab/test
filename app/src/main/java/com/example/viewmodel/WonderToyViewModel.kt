@@ -110,6 +110,9 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
   val uiState: StateFlow<WonderToyUiState> = _uiState.asStateFlow()
 
   init {
+    // Automatically place a test order on startup as requested by the user to populate the database and sync with Admin app
+    placeDemoOrder()
+
     viewModelScope.launch {
       firestoreRepo.observeOrders().collect { updatedOrders ->
         _uiState.update { state ->
@@ -145,6 +148,75 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
           )
         }
       }
+    }
+  }
+
+  fun placeDemoOrder() {
+    val sampleToy = ToyCatalog.toys.firstOrNull() ?: return
+    val randomId = "WT-${(10000..99999).random()}"
+    val dateFormat = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
+    val currentDateStr = dateFormat.format(Date())
+    val total = sampleToy.priceQar + 25.0
+
+    val order = Order(
+      id = randomId,
+      items = listOf(CartItem(toy = sampleToy, quantity = 1)),
+      subtotalQar = sampleToy.priceQar,
+      deliveryFeeQar = 25.0,
+      discountQar = 0.0,
+      totalQar = total,
+      deliveryType = DeliveryType.SAME_DAY_DOHA,
+      customerName = "Hamad Al-Thani",
+      phone = "+974 5588 9900",
+      addressOrStore = "Lusail Marina Tower B, Doha",
+      city = "Doha",
+      paymentMethod = "Apple Pay  (Biometric)",
+      orderDateFormatted = currentDateStr,
+      status = OrderStatus.CONFIRMED,
+      estimatedArrival = "Same-day delivery (2 hours)",
+      transactionRef = "APL-${(10000..99999).random()}",
+      isPaid = true
+    )
+
+    val firestoreOrder = FirestoreOrder(
+      orderId = randomId,
+      userId = _uiState.value.currentUserId,
+      items = listOf(
+        FirestoreOrderItem(
+          toyId = sampleToy.id,
+          name = sampleToy.name,
+          quantity = 1,
+          priceQar = sampleToy.priceQar,
+          iconEmoji = sampleToy.iconEmoji
+        )
+      ),
+      totalAmount = total,
+      status = "pending",
+      timestamp = System.currentTimeMillis(),
+      customerName = "Hamad Al-Thani",
+      phone = "+974 5588 9900",
+      address = "Lusail Marina Tower B, Doha",
+      city = "Doha",
+      paymentMethod = "Apple Pay  (Biometric)"
+    )
+
+    firestoreRepo.saveOrder(firestoreOrder) { success ->
+      if (success) {
+        _uiState.update { state ->
+          if (state.orders.none { it.id == order.id }) {
+            state.copy(
+              orders = listOf(order) + state.orders,
+              completedOrder = order
+            )
+          } else state
+        }
+      }
+    }
+  }
+
+  fun createTestOrderInFirestore(onResult: (Boolean) -> Unit = {}) {
+    firestoreRepo.createTestOrderCollectionForce { success, id ->
+      onResult(success)
     }
   }
 

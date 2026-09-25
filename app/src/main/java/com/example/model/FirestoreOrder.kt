@@ -113,11 +113,10 @@ data class FirestoreOrder(
       return sdf.format(Date(timestamp))
     }
 
-  fun toMap(): Map<String, Any> {
+  fun toMap(): Map<String, Any?> {
     return mapOf(
       "orderId" to orderId,
       "userId" to userId,
-      "items" to items.map { it.toMap() },
       "totalAmount" to totalAmount,
       "status" to status,
       "timestamp" to timestamp,
@@ -125,7 +124,16 @@ data class FirestoreOrder(
       "phone" to phone,
       "address" to address,
       "city" to city,
-      "paymentMethod" to paymentMethod
+      "paymentMethod" to paymentMethod,
+      "items" to items.map { item ->
+        mapOf(
+          "toyId" to item.toyId,
+          "name" to item.name,
+          "quantity" to item.quantity,
+          "priceQar" to item.priceQar,
+          "iconEmoji" to item.iconEmoji
+        )
+      }
     )
   }
 

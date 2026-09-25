@@ -120,6 +120,7 @@ fun WonderToyApp(
     onShowAuthDialog = { show -> viewModel.showAuthDialog(show) },
     onUpdateUserProfile = { profile -> viewModel.updateUserProfile(profile) },
     onLogoutUser = { viewModel.logoutUser() },
+    onCreateFirestoreOrder = { viewModel.createTestOrderInFirestore() },
     modifier = modifier
   )
 }
@@ -150,6 +151,7 @@ fun WonderToyAppContent(
   onShowAuthDialog: (Boolean) -> Unit = {},
   onUpdateUserProfile: (UserProfile) -> Unit = {},
   onLogoutUser: () -> Unit = {},
+  onCreateFirestoreOrder: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   var currentTab by rememberSaveable { mutableStateOf(BottomTab.HOME) }
@@ -360,7 +362,8 @@ fun WonderToyAppContent(
               orders = uiState.orders,
               firestoreOrders = uiState.firestoreOrders,
               onShopToysClick = { currentTab = BottomTab.CATALOG },
-              onTrackFirestoreOrderClick = { order -> onShowOrderTracking(order) }
+              onTrackFirestoreOrderClick = { order -> onShowOrderTracking(order) },
+              onCreateFirestoreOrderClick = onCreateFirestoreOrder
             )
           }
           BottomTab.PROFILE -> {
