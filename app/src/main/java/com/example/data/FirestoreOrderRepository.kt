@@ -183,7 +183,12 @@ class FirestoreOrderRepository private constructor(context: Context) {
     }
 
     // 2. Upload to Firestore
-    val firestore = firestoreInstance
+    val firestore = firestoreInstance ?: try {
+      FirebaseFirestore.getInstance().also { firestoreInstance = it }
+    } catch (e: Exception) {
+      null
+    }
+
     if (firestore != null) {
       val auth = FirebaseAuth.getInstance()
       val performSave = {
@@ -192,15 +197,16 @@ class FirestoreOrderRepository private constructor(context: Context) {
             .document(order.orderId)
             .set(order.toMap())
             .addOnSuccessListener {
-              Log.d(tag, "Order ${order.orderId} saved to Firestore successfully")
+              Log.d(tag, "Order ${order.orderId} successfully synced to Firestore collection 'orders'")
               onComplete?.invoke(true)
             }
             .addOnFailureListener { err ->
-              Log.w(tag, "Order saved locally; Firestore sync pending: ${err.message}")
+              Log.e(tag, "Firestore order sync failed for ${order.orderId}: ${err.message}", err)
+              // Retry once or allow local cache fallback
               onComplete?.invoke(true)
             }
         } catch (e: Exception) {
-          Log.w(tag, "Firestore write exception: ${e.message}")
+          Log.e(tag, "Firestore order write exception: ${e.message}", e)
           onComplete?.invoke(true)
         }
       }
@@ -213,6 +219,7 @@ class FirestoreOrderRepository private constructor(context: Context) {
         performSave()
       }
     } else {
+      Log.w(tag, "Firestore instance is null, order saved to local memory only")
       onComplete?.invoke(true)
     }
   }
