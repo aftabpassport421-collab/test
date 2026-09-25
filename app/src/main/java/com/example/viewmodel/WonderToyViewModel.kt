@@ -122,6 +122,30 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
         }
       }
     }
+
+    viewModelScope.launch {
+      firestoreRepo.observeProducts().collect { firestoreProducts ->
+        _uiState.update { state ->
+          val combinedToys = if (firestoreProducts.isNotEmpty()) {
+            val existingIds = firestoreProducts.map { it.id }.toSet()
+            firestoreProducts + ToyCatalog.toys.filter { it.id !in existingIds }
+          } else {
+            ToyCatalog.toys
+          }
+          state.copy(
+            toys = combinedToys,
+            filteredToys = filterAndSortToys(
+              combinedToys,
+              state.selectedCategory,
+              state.selectedAgeGroup,
+              state.selectedBrand,
+              state.searchQuery,
+              state.sortOrder
+            )
+          )
+        }
+      }
+    }
   }
 
   private fun filterAndSortToys(

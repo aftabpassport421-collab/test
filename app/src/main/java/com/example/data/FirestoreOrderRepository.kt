@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.example.model.FirestoreOrder
 import com.example.model.FirestoreOrderItem
+import com.example.model.ToyItem
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.firestore.FirebaseFirestore
@@ -30,6 +31,9 @@ class FirestoreOrderRepository private constructor(context: Context) {
 
   // In-memory backing cache for immediate offline responsiveness
   private val cachedOrders = CopyOnWriteArrayList<FirestoreOrder>()
+  private val cachedProducts = CopyOnWriteArrayList<ToyItem>().apply {
+    addAll(ToyCatalog.toys)
+  }
 
   init {
     initFirebase(context.applicationContext)
@@ -40,9 +44,9 @@ class FirestoreOrderRepository private constructor(context: Context) {
     try {
       if (FirebaseApp.getApps(context).isEmpty()) {
         val options = FirebaseOptions.Builder()
-          .setApplicationId("1:126683900484:android:wondertoyqatar")
-          .setProjectId("wondertoy-qatar")
-          .setApiKey("AIzaSyB3-WonderToyQatarFirestoreKey99")
+          .setApplicationId("1:338438459734:android:e6c27cfe7c95571af746f7")
+          .setProjectId("wonder-toy-2f323")
+          .setApiKey("AIzaSyDwO-KhRmpP3Rv0PyYCxjxh6755eGZf_Jc")
           .build()
         FirebaseApp.initializeApp(context, options)
         Log.d(tag, "FirebaseApp initialized with fallback options")
@@ -278,6 +282,81 @@ class FirestoreOrderRepository private constructor(context: Context) {
         Log.w(tag, "Error setting up snapshot listener: ${e.message}")
         trySend(cachedOrders.toList())
       }
+    }
+
+    awaitClose {
+      listener?.remove()
+    }
+  }
+
+  fun observeProducts(): Flow<List<ToyItem>> = callbackFlow {
+    trySend(cachedProducts.toList())
+
+    var listener: ListenerRegistration? = null
+    val firestore = firestoreInstance
+
+    if (firestore != null) {
+      try {
+        listener = firestore.collection("products")
+          .addSnapshotListener { snapshot, error ->
+            if (error != null) {
+              Log.w(tag, "Products snapshot error: ${error.message}")
+              trySend(cachedProducts.toList())
+              return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+              val firestoreProducts = snapshot.documents.mapNotNull { doc ->
+                val data = doc.data
+                if (data != null) {
+                  val name = data["name"] as? String ?: "Toy"
+                  val category = data["category"] as? String ?: "Building Toys"
+                  val ageRange = data["ageGroup"] as? String ?: "3-6 years"
+                  val price = (data["price"] as? Number)?.toDouble() ?: 20.0
+                  val stock = (data["stockQuantity"] as? Number)?.toInt() ?: 10
+                  val desc = data["description"] as? String ?: ""
+
+                  ToyItem(
+                    id = doc.id,
+                    name = name,
+                    brand = "LEGO",
+                    category = category,
+                    ageRange = ageRange,
+                    priceQar = price,
+                    originalPriceQar = price * 1.2,
+                    rating = 4.8,
+                    reviewsCount = 15,
+                    badge = "New",
+                    description = desc.ifBlank { "High quality toy from Wonder Toy Store." },
+                    features = listOf("Tested safe for kids", "Official Wonder Toy Product"),
+                    inStock = stock > 0,
+                    popularScore = 95,
+                    iconEmoji = "🧸"
+                  )
+                } else null
+              }
+
+              if (firestoreProducts.isNotEmpty()) {
+                firestoreProducts.forEach { fProduct ->
+                  val idx = cachedProducts.indexOfFirst { it.id == fProduct.id }
+                  if (idx >= 0) {
+                    cachedProducts[idx] = fProduct
+                  } else {
+                    cachedProducts.add(0, fProduct)
+                  }
+                }
+              }
+              trySend(cachedProducts.toList())
+            } else {
+              trySend(cachedProducts.toList())
+            }
+          }
+      } catch (e: Exception) {
+        Log.w(tag, "Error setting up products listener: ${e.message}")
+        trySend(cachedProducts.toList())
+      }
+    } else {
+      trySend(cachedProducts.toList())
     }
 
     awaitClose {
