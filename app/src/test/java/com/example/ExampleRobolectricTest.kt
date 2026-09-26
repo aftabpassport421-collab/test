@@ -56,9 +56,17 @@ class ExampleRobolectricTest {
       paymentMethod = "Credit Card"
     )
 
+    val latch = java.util.concurrent.CountDownLatch(1)
+    var isSuccess = false
+
     repository.saveOrder(dummyOrder) { success ->
-      // Callback invoked
+      isSuccess = success
+      latch.countDown()
     }
+
+    val completed = latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+    org.junit.Assert.assertTrue("Save order timed out", completed)
+    org.junit.Assert.assertTrue("Save order failed", isSuccess)
 
     val orders = repository.getOrdersSync()
     val found = orders.find { it.orderId == "TEST-DUMMY-999" }
