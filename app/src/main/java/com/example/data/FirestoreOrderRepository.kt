@@ -6,7 +6,6 @@ import com.example.model.FirestoreOrder
 import com.example.model.FirestoreOrderItem
 import com.example.model.ToyItem
 import com.google.firebase.FirebaseApp
-import com.google.firebase.FirebaseOptions
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
@@ -43,17 +42,17 @@ class FirestoreOrderRepository private constructor(context: Context) {
   private fun initFirebase(context: Context) {
     try {
       if (FirebaseApp.getApps(context).isEmpty()) {
-        val options = FirebaseOptions.Builder()
-          .setApplicationId("1:338438459734:android:e6c27cfe7c95571af746f7")
-          .setProjectId("wonder-toy-2f323")
-          .setApiKey("AIzaSyDwO-KhRmpP3Rv0PyYCxjxh6755eGZf_Jc")
-          .build()
-        FirebaseApp.initializeApp(context, options)
-        Log.d(tag, "FirebaseApp initialized with explicit options")
+        FirebaseApp.initializeApp(context)
+        Log.d(tag, "FirebaseApp initialized with google-services.json")
       }
       firestoreInstance = FirebaseFirestore.getInstance()
     } catch (e: Throwable) {
       Log.e(tag, "Firebase initialization error: ${e.message}", e)
+      try {
+        firestoreInstance = FirebaseFirestore.getInstance()
+      } catch (e2: Throwable) {
+        Log.e(tag, "Fallback firestore init error: ${e2.message}", e2)
+      }
     }
   }
 
