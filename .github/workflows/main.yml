@@ -50,7 +50,7 @@ jobs:
                 "client_info": {
                   "mobilesdk_app_id": "1:1234567890:android:1234567890",
                   "android_client_info": {
-                    "package_name": "com.aistudio.toywonder.kpznvw"
+                    "package_name": "com.aistudio.wondertoy.qtrvzp"
                   }
                 },
                 "oauth_client": [],

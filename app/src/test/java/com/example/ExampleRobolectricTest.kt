@@ -29,5 +29,42 @@ class ExampleRobolectricTest {
       }
     }
   }
+
+  @Test
+  fun `create dummy order and verify record creation`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val repository = com.example.data.FirestoreOrderRepository.getInstance(context)
+    val dummyOrder = com.example.model.FirestoreOrder(
+      orderId = "TEST-DUMMY-999",
+      userId = "test_user_qatar",
+      items = listOf(
+        com.example.model.FirestoreOrderItem(
+          toyId = "toy_01",
+          name = "Wonder Lego Lusail Stadium",
+          quantity = 1,
+          priceQar = 340.0,
+          iconEmoji = "🏟️"
+        )
+      ),
+      totalAmount = 340.0,
+      status = "pending",
+      timestamp = System.currentTimeMillis(),
+      customerName = "Test Buyer",
+      phone = "+974 5555 0000",
+      address = "Doha Corniche",
+      city = "Doha",
+      paymentMethod = "Credit Card"
+    )
+
+    repository.saveOrder(dummyOrder) { success ->
+      // Callback invoked
+    }
+
+    val orders = repository.getOrdersSync()
+    val found = orders.find { it.orderId == "TEST-DUMMY-999" }
+    assertNotNull(found)
+    assertEquals(340.0, found?.totalAmount ?: 0.0, 0.01)
+    assertEquals("pending", found?.status)
+  }
 }
 
