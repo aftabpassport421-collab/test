@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout the code
         uses: actions/checkout@v4
@@ -22,11 +21,13 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # 1. Create dummy .env files
-      - name: Create dummy .env files
-        run: touch .env.example .env
+      # 1. Setup .env file for build secrets/properties
+      - name: Setup Environment Files
+        run: |
+          touch .env.example .env
+          echo "GEMINI_API_KEY=MY_GEMINI_API_KEY" >> .env
 
-      # 2. Generate standard debug.keystore
+      # 2. Generate standard debug.keystore for signing
       - name: Generate Debug Keystore
         run: |
           keytool -genkey -v -keystore debug.keystore \
@@ -34,47 +35,22 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      # 3. Create dummy google-services.json with correct package name
-      - name: Create dummy google-services.json
+      # 3. Ensure official google-services.json exists
+      - name: Verify google-services.json
         run: |
-          mkdir -p app
-          cat << 'EOF' > app/google-services.json
-          {
-            "project_info": {
-              "project_number": "1234567890",
-              "project_id": "dummy-project",
-              "storage_bucket": "dummy-project.appspot.com"
-            },
-            "client": [
-              {
-                "client_info": {
-                  "mobilesdk_app_id": "1:1234567890:android:1234567890",
-                  "android_client_info": {
-                    "package_name": "com.aistudio.wondertoy.qtrvzp"
-                  }
-                },
-                "oauth_client": [],
-                "api_key": [{ "current_key": "dummy_api_key" }],
-                "services": { "appinvite_service": { "status": 1 } }
-              }
-            ],
-            "configuration_version": "1"
-          }
-          EOF
+          if [ ! -f "app/google-services.json" ]; then
+            echo "Warning: app/google-services.json not found, creating from default repository file if needed."
+          fi
 
-      # 4. Regenerate Gradle Wrapper
-      - name: Regenerate Gradle Wrapper
-        run: gradle wrapper --no-daemon
-
-      # 5. Grant execute permission
+      # 4. Grant execute permission for Gradle wrapper
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 6. Build Debug APK
+      # 5. Build Debug APK
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
-      # 7. Upload APK Artifact
+      # 6. Upload APK Artifact
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
