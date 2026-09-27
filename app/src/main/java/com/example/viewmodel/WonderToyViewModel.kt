@@ -78,10 +78,13 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
   private val firestoreRepo = FirestoreOrderRepository.getInstance(application)
   private val userSessionManager = UserSessionManager(application)
 
+  private val initialProfile = userSessionManager.getProfile()
+
   private val _uiState = MutableStateFlow(
     WonderToyUiState(
-      userProfile = userSessionManager.getProfile(),
-      firestoreOrders = firestoreRepo.getOrdersSync()
+      userProfile = initialProfile,
+      firestoreOrders = firestoreRepo.getOrdersSync(),
+      isAuthDialogVisible = !initialProfile.isRegistered
     )
   )
   val uiState: StateFlow<WonderToyUiState> = _uiState.asStateFlow()
@@ -521,6 +524,7 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
 
   fun updateUserProfile(profile: UserProfile) {
     userSessionManager.saveProfile(profile)
+    firestoreRepo.saveUserProfile(profile)
     _uiState.update {
       it.copy(
         userProfile = profile,

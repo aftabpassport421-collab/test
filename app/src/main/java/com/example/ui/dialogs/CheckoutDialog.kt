@@ -449,44 +449,6 @@ fun CheckoutDialog(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Quick Test Card Fill Buttons for easy live testing on phone
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-              OutlinedButton(
-                onClick = {
-                  cardNumber = "4508 2384 9102 5519"
-                  cardExpiry = "12/28"
-                  cardCvv = "382"
-                  cardHolder = "M. AL-KUWARI"
-                },
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.weight(1f)
-              ) {
-                Icon(imageVector = Icons.Filled.FlashOn, contentDescription = null, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Test Visa", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-              }
-
-              OutlinedButton(
-                onClick = {
-                  cardNumber = "5200 8192 3840 9124"
-                  cardExpiry = "06/29"
-                  cardCvv = "714"
-                  cardHolder = "QNB NAPS CARD"
-                },
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.weight(1f)
-              ) {
-                Icon(imageVector = Icons.Filled.FlashOn, contentDescription = null, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Test NAPS", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-              }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             OutlinedTextField(
               value = cardNumber,
               onValueChange = { input ->

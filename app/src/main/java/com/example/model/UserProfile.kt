@@ -1,20 +1,20 @@
 package com.example.model
 
 data class UserProfile(
-  val id: String = "user_qatar_default",
-  val name: String = "Ahmad Al-Kuwari",
-  val phone: String = "+974 5512 8844",
-  val email: String = "ahmad.alkuwari@gmail.com",
+  val id: String = "",
+  val name: String = "",
+  val phone: String = "+974 ",
+  val email: String = "",
   val city: String = "Doha",
-  val zone: String = "Zone 66 (West Bay Lagoon)",
-  val street: String = "Street 840",
-  val building: String = "Villa 14",
-  val isRegistered: Boolean = true,
-  val rewardsPoints: Int = 250,
-  val joinedDate: String = "September 2026"
+  val zone: String = "",
+  val street: String = "",
+  val building: String = "",
+  val isRegistered: Boolean = false,
+  val rewardsPoints: Int = 0,
+  val joinedDate: String = ""
 ) {
   val fullQatarAddress: String
-    get() = "$building, $street, $zone, $city"
+    get() = if (building.isNotBlank() && street.isNotBlank()) "$building, $street, $zone, $city" else "$city, Qatar"
 
   val nationalPhoneFormatted: String
     get() = if (phone.startsWith("+974")) phone else "+974 $phone"

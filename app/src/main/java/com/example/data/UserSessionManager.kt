@@ -26,24 +26,24 @@ class UserSessionManager(context: Context) {
   }
 
   fun getProfile(): UserProfile {
-    val jsonStr = prefs.getString(KEY_USER_DATA, null) ?: return UserProfile()
+    val jsonStr = prefs.getString(KEY_USER_DATA, null) ?: return UserProfile(isRegistered = false)
     return try {
       val json = JSONObject(jsonStr)
       UserProfile(
-        id = json.optString("id", "user_qatar_default"),
-        name = json.optString("name", "Ahmad Al-Kuwari"),
-        phone = json.optString("phone", "+974 5512 8844"),
-        email = json.optString("email", "ahmad.alkuwari@gmail.com"),
+        id = json.optString("id", ""),
+        name = json.optString("name", ""),
+        phone = json.optString("phone", "+974 "),
+        email = json.optString("email", ""),
         city = json.optString("city", "Doha"),
-        zone = json.optString("zone", "Zone 66 (West Bay Lagoon)"),
-        street = json.optString("street", "Street 840"),
-        building = json.optString("building", "Villa 14"),
-        isRegistered = json.optBoolean("isRegistered", true),
-        rewardsPoints = json.optInt("rewardsPoints", 250),
-        joinedDate = json.optString("joinedDate", "September 2026")
+        zone = json.optString("zone", ""),
+        street = json.optString("street", ""),
+        building = json.optString("building", ""),
+        isRegistered = json.optBoolean("isRegistered", false),
+        rewardsPoints = json.optInt("rewardsPoints", 0),
+        joinedDate = json.optString("joinedDate", "")
       )
     } catch (_: Exception) {
-      UserProfile()
+      UserProfile(isRegistered = false)
     }
   }
 

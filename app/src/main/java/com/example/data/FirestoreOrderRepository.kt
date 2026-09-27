@@ -5,6 +5,7 @@ import android.util.Log
 import com.example.model.FirestoreOrder
 import com.example.model.FirestoreOrderItem
 import com.example.model.ToyItem
+import com.example.model.UserProfile
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -357,6 +358,37 @@ class FirestoreOrderRepository private constructor(context: Context) {
   }
 
   fun getOrdersSync(): List<FirestoreOrder> = cachedOrders.toList()
+
+  fun saveUserProfile(profile: UserProfile, onComplete: ((Boolean) -> Unit)? = null) {
+    val db = firestoreInstance ?: run {
+      onComplete?.invoke(false)
+      return
+    }
+    val userMap = mapOf(
+      "id" to profile.id,
+      "name" to profile.name,
+      "phone" to profile.phone,
+      "email" to profile.email,
+      "city" to profile.city,
+      "zone" to profile.zone,
+      "street" to profile.street,
+      "building" to profile.building,
+      "isRegistered" to profile.isRegistered,
+      "rewardsPoints" to profile.rewardsPoints,
+      "joinedDate" to profile.joinedDate,
+      "timestamp" to System.currentTimeMillis()
+    )
+    db.collection("users").document(profile.id.ifEmpty { "user_default" })
+      .set(userMap)
+      .addOnSuccessListener {
+        Log.d(tag, "User profile successfully saved to Firestore: ${profile.id}")
+        onComplete?.invoke(true)
+      }
+      .addOnFailureListener { e ->
+        Log.e(tag, "Failed to save user profile to Firestore: ${e.message}", e)
+        onComplete?.invoke(false)
+      }
+  }
 
   companion object {
     @Volatile

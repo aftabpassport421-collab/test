@@ -17,8 +17,6 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
-    
-    com.example.data.TestFirestore.verifyFirestoreConnection(this)
 
     setContent {
       MyApplicationTheme {
