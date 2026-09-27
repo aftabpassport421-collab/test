@@ -18,16 +18,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      # Install Gradle directly on the runner
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # 1. Setup .env file for build secrets/properties
       - name: Setup Environment Files
         run: |
           touch .env.example .env
           echo "GEMINI_API_KEY=MY_GEMINI_API_KEY" >> .env
 
-      # 2. Generate standard debug.keystore for signing
       - name: Generate Debug Keystore
         run: |
           keytool -genkey -v -keystore debug.keystore \
@@ -35,37 +34,20 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      # 3. Ensure official google-services.json exists
-      - name: Verify google-services.json
+      # Generate wrapper on-the-fly if missing
+      - name: Generate Gradle Wrapper if missing
         run: |
-          FILE_PATH=$(find . -name "google-services.json" -not -path "*/build/*" | head -n 1)
-          if [ -n "$FILE_PATH" ]; then
-            echo "Found google-services.json at $FILE_PATH"
-          else
-            echo "::warning ::google-services.json not found in repository. Firebase Firestore will fail to initialize at runtime."
+          if [ ! -f "gradlew" ]; then
+            echo "gradlew not found. Generating wrapper..."
+            gradle wrapper
+            chmod +x gradlew
           fi
 
-      # 4. Find and grant execute permission for gradlew anywhere in the repo
-      - name: Grant execute permission for gradlew
-        run: |
-          GRADLEW_PATH=$(find . -name "gradlew" -not -path "*/build/*" | head -n 1)
-          if [ -n "$GRADLEW_PATH" ]; then
-            echo "Found gradlew at $GRADLEW_PATH"
-            chmod +x "$GRADLEW_PATH"
-          else
-            echo "::error ::gradlew file not found anywhere in the repository."
-            exit 1
-          fi
-
-      # 5. Locate Gradle directory and run build
+      # Build Debug APK
       - name: Build Debug APK
-        run: |
-          GRADLE_DIR=$(dirname $(find . -name "gradlew" -not -path "*/build/*" | head -n 1))
-          echo "Building from directory: $GRADLE_DIR"
-          cd "$GRADLE_DIR"
-          ./gradlew assembleDebug
+        run: gradle assembleDebug
 
-      # 6. Locate generated APK and Upload Artifact
+      # Upload APK Artifact
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
