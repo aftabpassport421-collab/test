@@ -76,7 +76,6 @@ import com.example.ui.theme.StarGold
 fun OrderTrackingScreen(
   order: FirestoreOrder,
   onBackClick: () -> Unit,
-  onUpdateStatusTest: ((newStatus: String) -> Unit)? = null,
   onOpenAdminView: (() -> Unit)? = null,
   modifier: Modifier = Modifier
 ) {
@@ -88,8 +87,6 @@ fun OrderTrackingScreen(
     animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
     label = "progress"
   )
-
-  var showSimControls by remember { mutableStateOf(false) }
 
   Scaffold(
     topBar = {
@@ -485,67 +482,6 @@ fun OrderTrackingScreen(
             ) {
               Text("Total Paid", fontSize = 13.sp, fontWeight = FontWeight.Bold)
               Text("${order.totalAmount.toInt()} QAR", fontSize = 15.sp, fontWeight = FontWeight.Black, color = IndigoPrimary)
-            }
-          }
-        }
-      }
-
-      // 5. Interactive Status Tester (Quick Toggle)
-      if (onUpdateStatusTest != null) {
-        item {
-          Spacer(modifier = Modifier.height(14.dp))
-          OutlinedButton(
-            onClick = { showSimControls = !showSimControls },
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
-          ) {
-            Text(
-              text = if (showSimControls) "Hide Live Test Controls ⚙️" else "Test Live Firestore Status Changes ⚡",
-              fontSize = 12.sp,
-              fontWeight = FontWeight.Bold
-            )
-          }
-
-          AnimatedVisibility(visible = showSimControls) {
-            Card(
-              shape = RoundedCornerShape(12.dp),
-              colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp)
-            ) {
-              Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                  text = "Simulate Firestore Real-Time Update:",
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                  modifier = Modifier.fillMaxWidth(),
-                  horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                  listOf("pending", "packaged", "shipping", "delivered").forEach { st ->
-                    val isSel = order.status == st
-                    Button(
-                      onClick = { onUpdateStatusTest(st) },
-                      shape = RoundedCornerShape(8.dp),
-                      colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSel) IndigoPrimary else MaterialTheme.colorScheme.surface
-                      ),
-                      contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                      modifier = Modifier.weight(1f)
-                    ) {
-                      Text(
-                        text = st.take(4).uppercase(),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
-                      )
-                    }
-                  }
-                }
-              }
             }
           }
         }

@@ -46,6 +46,8 @@ class FirestoreOrderRepository private constructor(context: Context) {
         Log.d(tag, "FirebaseApp initialized with google-services.json")
       }
       firestoreInstance = FirebaseFirestore.getInstance()
+      FirebaseFirestore.setLoggingEnabled(true)
+      Log.d(tag, "FirebaseFirestore logging enabled successfully.")
     } catch (e: Throwable) {
       Log.e(tag, "Firebase initialization error: ${e.message}", e)
       try {
@@ -383,15 +385,17 @@ class FirestoreOrderRepository private constructor(context: Context) {
         listener = firestore.collection("products")
           .addSnapshotListener { snapshot, error ->
             if (error != null) {
-              Log.w(tag, "Products snapshot error: ${error.message}")
+              Log.w(tag, "Products snapshot error: ${error.message}", error)
               trySend(cachedProducts.toList())
               return@addSnapshotListener
             }
 
             if (snapshot != null) {
+              Log.d(tag, "Products snapshot received! Document count: ${snapshot.documents.size}")
               val firestoreProducts = snapshot.documents.mapNotNull { doc ->
                 val data = doc.data
                 if (data != null) {
+                  Log.d(tag, "Parsing product doc ID: ${doc.id} with data: $data")
                   val name = data["name"] as? String ?: "Toy"
                   val category = data["category"] as? String ?: "Building Toys"
                   val ageRange = data["ageGroup"] as? String ?: "3-6 years"

@@ -110,8 +110,9 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
   val uiState: StateFlow<WonderToyUiState> = _uiState.asStateFlow()
 
   init {
-    // Automatically place a test order on startup as requested by the user to populate the database and sync with Admin app
+    // Automatically place a test order on startup and create test 31 order in Firestore collection as requested
     placeDemoOrder()
+    firestoreRepo.createTestOrderCollectionForce { _, _ -> }
 
     viewModelScope.launch {
       firestoreRepo.observeOrders().collect { updatedOrders ->

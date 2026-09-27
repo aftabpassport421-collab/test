@@ -164,6 +164,139 @@ fun OrdersScreen(
         Spacer(modifier = Modifier.height(14.dp))
       }
 
+      // Placed Orders (Local State)
+      if (orders.isNotEmpty()) {
+        item {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text(
+              text = "My Recent Orders (${orders.size})",
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Bold,
+              color = IndigoPrimary
+            )
+            Surface(
+              shape = RoundedCornerShape(6.dp),
+              color = IndigoPrimary.copy(alpha = 0.15f)
+            ) {
+              Text(
+                text = "PLACED",
+                fontSize = 9.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = IndigoPrimary,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+              )
+            }
+          }
+          Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        items(orders, key = { "local_${it.id}" }) { order ->
+          Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 6.dp)
+              .testTag("local_order_card_${order.id}")
+          ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Column {
+                  Text(
+                    text = "#${order.id}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    color = IndigoPrimary
+                  )
+                  Text(
+                    text = order.orderDateFormatted,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                }
+
+                Surface(
+                  shape = RoundedCornerShape(8.dp),
+                  color = MintAccent
+                ) {
+                  Text(
+                    text = order.status.label.uppercase(),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                  )
+                }
+              }
+
+              Spacer(modifier = Modifier.height(10.dp))
+
+              Text(
+                text = "${order.customerName} • ${order.addressOrStore}, ${order.city}",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+
+              Spacer(modifier = Modifier.height(4.dp))
+              Text(
+                text = order.items.joinToString { "${it.toy.iconEmoji} ${it.toy.name} (x${it.quantity})" },
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
+              )
+
+              Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Column {
+                  Text(
+                    text = "${order.totalQar.toInt()} QAR",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.primary
+                  )
+                  Text(
+                    text = order.paymentMethod,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                  )
+                }
+
+                Surface(
+                  shape = RoundedCornerShape(8.dp),
+                  color = CoralSecondary.copy(alpha = 0.15f)
+                ) {
+                  Text(
+                    text = order.estimatedArrival,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = CoralSecondary,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                  )
+                }
+              }
+            }
+          }
+        }
+        item {
+          Spacer(modifier = Modifier.height(16.dp))
+        }
+      }
+
       // Firestore Real-Time Orders
       if (firestoreOrders.isNotEmpty()) {
         item {

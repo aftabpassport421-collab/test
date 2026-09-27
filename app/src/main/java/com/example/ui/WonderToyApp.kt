@@ -161,7 +161,6 @@ fun WonderToyAppContent(
     OrderTrackingScreen(
       order = uiState.selectedTrackingOrder,
       onBackClick = { onShowOrderTracking(null) },
-      onUpdateStatusTest = { status -> onUpdateOrderStatus(uiState.selectedTrackingOrder.orderId, status) },
       modifier = modifier.fillMaxSize()
     )
   }
