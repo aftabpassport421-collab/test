@@ -38,21 +38,36 @@ jobs:
       # 3. Ensure official google-services.json exists
       - name: Verify google-services.json
         run: |
-          if [ ! -f "app/google-services.json" ]; then
-            echo "Warning: app/google-services.json not found, creating from default repository file if needed."
+          FILE_PATH=$(find . -name "google-services.json" -not -path "*/build/*" | head -n 1)
+          if [ -n "$FILE_PATH" ]; then
+            echo "Found google-services.json at $FILE_PATH"
+          else
+            echo "::warning ::google-services.json not found in repository. Firebase Firestore will fail to initialize at runtime."
           fi
 
-      # 4. Grant execute permission for Gradle wrapper
+      # 4. Find and grant execute permission for gradlew anywhere in the repo
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: |
+          GRADLEW_PATH=$(find . -name "gradlew" -not -path "*/build/*" | head -n 1)
+          if [ -n "$GRADLEW_PATH" ]; then
+            echo "Found gradlew at $GRADLEW_PATH"
+            chmod +x "$GRADLEW_PATH"
+          else
+            echo "::error ::gradlew file not found anywhere in the repository."
+            exit 1
+          fi
 
-      # 5. Build Debug APK
+      # 5. Locate Gradle directory and run build
       - name: Build Debug APK
-        run: ./gradlew assembleDebug
+        run: |
+          GRADLE_DIR=$(dirname $(find . -name "gradlew" -not -path "*/build/*" | head -n 1))
+          echo "Building from directory: $GRADLE_DIR"
+          cd "$GRADLE_DIR"
+          ./gradlew assembleDebug
 
-      # 6. Upload APK Artifact
+      # 6. Locate generated APK and Upload Artifact
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: "**/build/outputs/apk/debug/*.apk"
