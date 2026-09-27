@@ -69,8 +69,6 @@ secrets {
     ignoreList.add("FIREBASE_APPCHECK_DEBUG_TOKEN")
 }
 
-// Some unused dependencies are commented out below instead of being removed.
-// This makes it easy to add them back in the future if needed.
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(platform(libs.firebase.bom))
@@ -97,15 +95,14 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.converter.moshi)
     implementation(libs.firebase.ai)
-    // Uncomment to use Firestore:
     implementation(libs.firebase.firestore)
 
-    // Uncomment ALL FOUR of the following dependencies together to use Firebase Auth and Google
-    // Sign-In via Credential Manager:
+    // Firebase Auth and Credential Manager (Required for Phone OTP)
     implementation(libs.firebase.auth)
-    // implementation(libs.androidx.credentials)
-    // implementation(libs.androidx.credentials.play.services)
-    // implementation(libs.googleid)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services)
+    implementation(libs.googleid)
+
     implementation(libs.firebase.appcheck.recaptcha)
     implementation(libs.firebase.appcheck.debug)
     implementation(libs.kotlinx.coroutines.android)
