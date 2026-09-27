@@ -41,36 +41,13 @@ data class WonderToyUiState(
   val searchQuery: String = "",
   val sortOrder: SortOrder = SortOrder.POPULAR,
   val wishlistIds: Set<String> = setOf("toy_01", "toy_06"),
-  val cartItems: List<CartItem> = listOf(
-    CartItem(toy = ToyCatalog.toys[0], quantity = 1, giftWrap = true),
-    CartItem(toy = ToyCatalog.toys[3], quantity = 1, giftWrap = false)
-  ),
+  val cartItems: List<CartItem> = emptyList(),
   val promoCode: String = "WONDER10",
   val promoDiscountPercent: Double = 0.10,
   val promoMessage: String? = "10% Wonder discount applied!",
   val deliveryType: DeliveryType = DeliveryType.SAME_DAY_DOHA,
   val selectedStore: StoreBranch = ToyCatalog.branches.first(),
-  val orders: List<Order> = listOf(
-    Order(
-      id = "WT-90214",
-      items = listOf(CartItem(toy = ToyCatalog.toys[5], quantity = 1)),
-      subtotalQar = 99.0,
-      deliveryFeeQar = 25.0,
-      discountQar = 0.0,
-      totalQar = 124.0,
-      deliveryType = DeliveryType.SAME_DAY_DOHA,
-      customerName = "Fatima Al-Kuwari",
-      phone = "+974 5512 8844",
-      addressOrStore = "Villa 14, West Bay Lagoon",
-      city = "Doha",
-      paymentMethod = "Apple Pay  (Biometric)",
-      orderDateFormatted = "Yesterday, 3:45 PM",
-      status = OrderStatus.DELIVERED,
-      estimatedArrival = "Delivered to reception",
-      transactionRef = "APL-77412",
-      isPaid = true
-    )
-  ),
+  val orders: List<Order> = emptyList(),
   val selectedToyDetail: ToyItem? = null,
   val isCheckoutVisible: Boolean = false,
   val completedOrder: Order? = null,
@@ -110,10 +87,6 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
   val uiState: StateFlow<WonderToyUiState> = _uiState.asStateFlow()
 
   init {
-    // Automatically place a test order on startup and create test 31 order in Firestore collection as requested
-    placeDemoOrder()
-    firestoreRepo.createTestOrderCollectionForce { _, _ -> }
-
     viewModelScope.launch {
       firestoreRepo.observeOrders().collect { updatedOrders ->
         _uiState.update { state ->

@@ -19,16 +19,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -41,20 +36,15 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.OutlinedButton
-import com.example.model.DeliveryType
 import com.example.model.FirestoreOrder
-import com.example.model.FirestoreOrderStatus
 import com.example.model.Order
 import com.example.model.OrderStatus
-import com.example.ui.theme.CoralSecondary
 import com.example.ui.theme.IndigoPrimary
 import com.example.ui.theme.MintAccent
 
 @Composable
 fun OrdersScreen(
-  orders: List<Order>,
+  orders: List<Order> = emptyList(),
   firestoreOrders: List<FirestoreOrder> = emptyList(),
   onShopToysClick: () -> Unit,
   onTrackFirestoreOrderClick: (FirestoreOrder) -> Unit = {},
@@ -101,14 +91,6 @@ fun OrdersScreen(
       ) {
         Text("Shop Wonder Toy")
       }
-      Spacer(modifier = Modifier.height(10.dp))
-      OutlinedButton(
-        onClick = onCreateFirestoreOrderClick,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.testTag("create_test31_order_btn")
-      ) {
-        Text("Create 'test31' Order in Firestore 📡")
-      }
     }
   } else {
     LazyColumn(
@@ -152,181 +134,11 @@ fun OrdersScreen(
             )
           }
         }
-        Spacer(modifier = Modifier.height(10.dp))
-        Button(
-          onClick = onCreateFirestoreOrderClick,
-          shape = RoundedCornerShape(10.dp),
-          colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
-          modifier = Modifier.fillMaxWidth().testTag("create_test31_order_btn_header")
-        ) {
-          Text("Create 'test31' Order in Firestore Collection 📡")
-        }
         Spacer(modifier = Modifier.height(14.dp))
-      }
-
-      // Placed Orders (Local State)
-      if (orders.isNotEmpty()) {
-        item {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Text(
-              text = "My Recent Orders (${orders.size})",
-              fontSize = 13.sp,
-              fontWeight = FontWeight.Bold,
-              color = IndigoPrimary
-            )
-            Surface(
-              shape = RoundedCornerShape(6.dp),
-              color = IndigoPrimary.copy(alpha = 0.15f)
-            ) {
-              Text(
-                text = "PLACED",
-                fontSize = 9.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = IndigoPrimary,
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-              )
-            }
-          }
-          Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        items(orders, key = { "local_${it.id}" }) { order ->
-          Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(vertical = 6.dp)
-              .testTag("local_order_card_${order.id}")
-          ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Column {
-                  Text(
-                    text = "#${order.id}",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Black,
-                    color = IndigoPrimary
-                  )
-                  Text(
-                    text = order.orderDateFormatted,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                  )
-                }
-
-                Surface(
-                  shape = RoundedCornerShape(8.dp),
-                  color = MintAccent
-                ) {
-                  Text(
-                    text = order.status.label.uppercase(),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                  )
-                }
-              }
-
-              Spacer(modifier = Modifier.height(10.dp))
-
-              Text(
-                text = "${order.customerName} • ${order.addressOrStore}, ${order.city}",
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-              )
-
-              Spacer(modifier = Modifier.height(4.dp))
-              Text(
-                text = order.items.joinToString { "${it.toy.iconEmoji} ${it.toy.name} (x${it.quantity})" },
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
-              )
-
-              Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Column {
-                  Text(
-                    text = "${order.totalQar.toInt()} QAR",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.primary
-                  )
-                  Text(
-                    text = order.paymentMethod,
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                  )
-                }
-
-                Surface(
-                  shape = RoundedCornerShape(8.dp),
-                  color = CoralSecondary.copy(alpha = 0.15f)
-                ) {
-                  Text(
-                    text = order.estimatedArrival,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = CoralSecondary,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                  )
-                }
-              }
-            }
-          }
-        }
-        item {
-          Spacer(modifier = Modifier.height(16.dp))
-        }
       }
 
       // Firestore Real-Time Orders
       if (firestoreOrders.isNotEmpty()) {
-        item {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Text(
-              text = "Live Firestore Orders (${firestoreOrders.size})",
-              fontSize = 13.sp,
-              fontWeight = FontWeight.Bold,
-              color = IndigoPrimary
-            )
-            Surface(
-              shape = RoundedCornerShape(6.dp),
-              color = MintAccent.copy(alpha = 0.15f)
-            ) {
-              Text(
-                text = "REAL-TIME",
-                fontSize = 9.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MintAccent,
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-              )
-            }
-          }
-          Spacer(modifier = Modifier.height(8.dp))
-        }
-
         items(firestoreOrders, key = { "fs_${it.orderId}" }) { fOrder ->
           Card(
             shape = RoundedCornerShape(16.dp),
@@ -334,72 +146,64 @@ fun OrdersScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier
               .fillMaxWidth()
-              .padding(vertical = 6.dp)
+              .padding(bottom = 12.dp)
               .testTag("firestore_order_card_${fOrder.orderId}")
           ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-              // Top Row: Order ID & Status Badge
+            Column(modifier = Modifier.padding(16.dp)) {
               Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
               ) {
-                Column {
-                  Text(
-                    text = "#${fOrder.orderId}",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Black,
-                    color = IndigoPrimary
-                  )
-                  Text(
-                    text = fOrder.formattedTime,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                  )
+                Text(
+                  text = "#${fOrder.orderId}",
+                  fontSize = 15.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.primary
+                )
+                val statusColor = when (fOrder.status.lowercase()) {
+                  "delivered" -> Color(0xFF22C55E)
+                  "shipping", "packaged" -> IndigoPrimary
+                  else -> Color(0xFFF59E0B)
                 }
-
                 Surface(
-                  shape = RoundedCornerShape(8.dp),
-                  color = when (fOrder.status.lowercase()) {
-                    "pending" -> Color(0xFFFFB300)
-                    "packaged" -> Color(0xFF0288D1)
-                    "shipping" -> IndigoPrimary
-                    "delivered" -> MintAccent
-                    else -> Color.Gray
-                  }
+                  shape = RoundedCornerShape(6.dp),
+                  color = statusColor.copy(alpha = 0.15f)
                 ) {
                   Text(
                     text = fOrder.status.uppercase(),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = statusColor,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                   )
                 }
               }
 
-              Spacer(modifier = Modifier.height(10.dp))
-
-              // Customer & Destination
+              Spacer(modifier = Modifier.height(6.dp))
               Text(
-                text = "${fOrder.customerName} • ${fOrder.address}, ${fOrder.city}",
+                text = fOrder.formattedTime,
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
 
-              // Items preview
-              Spacer(modifier = Modifier.height(4.dp))
+              Spacer(modifier = Modifier.height(8.dp))
               Text(
-                text = fOrder.items.joinToString { "${it.iconEmoji} ${it.name} (x${it.quantity})" },
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
+                text = "${fOrder.customerName} • ${fOrder.address}, ${fOrder.city}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
               )
 
-              Divider(modifier = Modifier.padding(vertical = 8.dp))
+              Spacer(modifier = Modifier.height(8.dp))
+              val itemsDesc = fOrder.items.joinToString(", ") { "${it.iconEmoji} ${it.name} (x${it.quantity})" }
+              Text(
+                text = itemsDesc,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+              )
 
-              // Bottom Row: Total & Track Button
+              Spacer(modifier = Modifier.height(12.dp))
               Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -407,10 +211,10 @@ fun OrdersScreen(
               ) {
                 Column {
                   Text(
-                    text = "${fOrder.totalAmount.toInt()} QAR",
+                    text = "${fOrder.totalAmount} QAR",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.onSurface
                   )
                   Text(
                     text = fOrder.paymentMethod,
@@ -424,11 +228,15 @@ fun OrdersScreen(
                   shape = RoundedCornerShape(10.dp),
                   colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
                   contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                  modifier = Modifier.testTag("track_firestore_order_${fOrder.orderId}")
+                  modifier = Modifier.testTag("track_fs_order_${fOrder.orderId}")
                 ) {
-                  Icon(Icons.Filled.LocalShipping, contentDescription = null, modifier = Modifier.size(16.dp))
+                  Icon(
+                    imageVector = Icons.Filled.LocalShipping,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                  )
                   Spacer(modifier = Modifier.width(6.dp))
-                  Text("Track Live Status 📡", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                  Text("Track Live Status 📡", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
               }
             }
@@ -437,7 +245,7 @@ fun OrdersScreen(
       }
 
       item {
-        Spacer(modifier = Modifier.height(80.dp))
+        Spacer(modifier = Modifier.height(24.dp))
       }
     }
   }
