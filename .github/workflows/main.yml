@@ -18,7 +18,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # Install Gradle directly on the runner
+      # Install Gradle directly on runner
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
@@ -34,7 +34,18 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      # Generate wrapper on-the-fly if missing
+      # Decode google-services.json from GitHub Secrets
+      - name: Create google-services.json
+        env:
+          GOOGLE_SERVICES_SECRET: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_SECRET" ]; then
+            echo "::error ::GOOGLE_SERVICES_JSON secret is empty or missing in GitHub Secrets!"
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICES_SECRET" > app/google-services.json
+
+      # Generate Gradle wrapper on-the-fly if missing
       - name: Generate Gradle Wrapper if missing
         run: |
           if [ ! -f "gradlew" ]; then
@@ -45,7 +56,7 @@ jobs:
 
       # Build Debug APK
       - name: Build Debug APK
-        run: gradle assembleDebug
+        run: ./gradlew assembleDebug
 
       # Upload APK Artifact
       - name: Upload APK Artifact
