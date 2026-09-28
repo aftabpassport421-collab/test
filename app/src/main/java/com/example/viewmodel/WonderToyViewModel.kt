@@ -397,7 +397,16 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
   }
 
   fun showCheckout(show: Boolean) {
-    _uiState.update { current -> current.copy(isCheckoutVisible = show) }
+    if (show && !_uiState.value.userProfile.isRegistered) {
+      _uiState.update { current ->
+        current.copy(
+          isAuthDialogVisible = true,
+          isCheckoutVisible = false
+        )
+      }
+    } else {
+      _uiState.update { current -> current.copy(isCheckoutVisible = show) }
+    }
   }
 
   fun dismissOrderSuccess() {
@@ -529,7 +538,8 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
       it.copy(
         userProfile = profile,
         currentUserId = profile.id,
-        isAuthDialogVisible = false
+        isAuthDialogVisible = false,
+        isCheckoutVisible = if (profile.isRegistered && it.cartItems.isNotEmpty()) true else it.isCheckoutVisible
       )
     }
   }

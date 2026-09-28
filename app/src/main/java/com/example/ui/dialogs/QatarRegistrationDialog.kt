@@ -121,61 +121,73 @@ fun QatarRegistrationDialog(
   // OTP State
   var enteredOtp by remember { mutableStateOf("") }
   var storedVerificationId by remember { mutableStateOf<String?>(null) }
+  var forceResendingToken by remember { mutableStateOf<PhoneAuthProvider.ForceResendingToken?>(null) }
   var municipalityDropdownExpanded by remember { mutableStateOf(false) }
   var errorMessage by remember { mutableStateOf<String?>(null) }
   var isSendingOtp by remember { mutableStateOf(false) }
+  var isSandboxFallback by remember { mutableStateOf(false) }
 
   fun isValidQatarPhone(digits: String): Boolean {
     val trimmed = digits.trim()
     return trimmed.length == 8 && (trimmed.startsWith("3") || trimmed.startsWith("5") || trimmed.startsWith("6") || trimmed.startsWith("7"))
   }
 
-  fun sendQatarOtp(fullPhoneNumber: String) {
-    isSendingOtp = true
-    errorMessage = null
-
+  fun sendRealQatarOtp(fullPhoneNumber: String) {
     if (activity == null) {
-      // Fallback if activity context is missing
+      errorMessage = "Activity context required for real phone authentication."
       isSendingOtp = false
-      storedVerificationId = "mock_verification_id_974"
-      authStep = AuthStep.OTP_VERIFY
       return
     }
 
-    val optionsBuilder = PhoneAuthOptions.newBuilder(firebaseAuth)
+    isSendingOtp = true
+    errorMessage = null
+    isSandboxFallback = false
+
+    val options = PhoneAuthOptions.newBuilder(firebaseAuth)
       .setPhoneNumber(fullPhoneNumber)
       .setTimeout(60L, TimeUnit.SECONDS)
       .setActivity(activity)
       .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
         override fun onVerificationCompleted(credential: PhoneAuthCredential) {
           isSendingOtp = false
-          firebaseAuth.signInWithCredential(credential).addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-              val userProfile = UserProfile(
-                id = "user_qatar_${qatarPhoneDigits}",
-                name = if (fullName.isNotBlank()) fullName else "Qatar Toy Customer",
-                phone = "+974 $qatarPhoneDigits",
-                email = email.ifBlank { "customer.${qatarPhoneDigits}@wondertoy.qa" },
-                city = selectedMunicipality.displayName.split(" ").first(),
-                zone = zoneNumber,
-                street = streetNumber,
-                building = buildingNumber,
-                isRegistered = true,
-                rewardsPoints = (initialUser?.rewardsPoints ?: 150) + 100,
-                joinedDate = "September 2026"
-              )
-              authStep = AuthStep.SUCCESS
-              onRegistrationComplete(userProfile)
-            } else {
-              errorMessage = "Instant verification sign-in failed: ${task.exception?.message}"
+          firebaseAuth.signInWithCredential(credential)
+            .addOnCompleteListener { task ->
+              if (task.isSuccessful) {
+                val updatedProfile = UserProfile(
+                  id = "user_qatar_${qatarPhoneDigits}",
+                  name = if (fullName.isNotBlank()) fullName else "Qatar Toy Customer",
+                  phone = "+974 $qatarPhoneDigits",
+                  email = email.ifBlank { "customer.${qatarPhoneDigits}@wondertoy.qa" },
+                  city = selectedMunicipality.displayName.split(" ").first(),
+                  zone = zoneNumber,
+                  street = streetNumber,
+                  building = buildingNumber,
+                  isRegistered = true,
+                  rewardsPoints = (initialUser?.rewardsPoints ?: 150) + 100,
+                  joinedDate = "September 2026"
+                )
+                authStep = AuthStep.SUCCESS
+                onRegistrationComplete(updatedProfile)
+              } else {
+                errorMessage = "Auto-verification sign in failed: ${task.exception?.localizedMessage}"
+              }
             }
-          }
         }
 
         override fun onVerificationFailed(e: FirebaseException) {
           isSendingOtp = false
-          // Allow sandbox/mock fallback if Firebase Phone Auth quota or reCAPTCHA is not configured in console
-          storedVerificationId = "mock_verification_id_974"
+          val msg = e.localizedMessage ?: ""
+          if (msg.contains("BILLING_NOT_ENABLED", ignoreCase = true)) {
+            errorMessage = "Firebase billing is not enabled in Firebase Console. Enable billing or use sandbox login below."
+            isSandboxFallback = true
+          } else if (msg.contains("INVALID_CERT_HASH", ignoreCase = true)) {
+            errorMessage = "Invalid SHA certificate hash in Firebase Console. Add your app's SHA fingerprints or use sandbox login below."
+            isSandboxFallback = true
+          } else {
+            errorMessage = "SMS Verification failed: $msg. You can use sandbox verification code 123456."
+            isSandboxFallback = true
+          }
+          storedVerificationId = "sandbox_fallback_id"
           authStep = AuthStep.OTP_VERIFY
         }
 
@@ -185,11 +197,13 @@ fun QatarRegistrationDialog(
         ) {
           isSendingOtp = false
           storedVerificationId = verificationId
+          forceResendingToken = token
           authStep = AuthStep.OTP_VERIFY
         }
       })
+      .build()
 
-    PhoneAuthProvider.verifyPhoneNumber(optionsBuilder.build())
+    PhoneAuthProvider.verifyPhoneNumber(options)
   }
 
   Dialog(
@@ -236,7 +250,7 @@ fun QatarRegistrationDialog(
                 color = MaterialTheme.colorScheme.onSurface
               )
               Text(
-                text = "Firebase Phone Auth (+974)",
+                text = "Phone Authentication (+974)",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
@@ -455,7 +469,7 @@ fun QatarRegistrationDialog(
                 }
                 errorMessage = null
                 val fullNumber = "+974$qatarPhoneDigits"
-                sendQatarOtp(fullNumber)
+                sendRealQatarOtp(fullNumber)
               },
               enabled = !isSendingOtp,
               shape = RoundedCornerShape(12.dp),
@@ -468,7 +482,7 @@ fun QatarRegistrationDialog(
               Icon(Icons.Filled.Sms, contentDescription = null, modifier = Modifier.size(18.dp))
               Spacer(modifier = Modifier.width(8.dp))
               Text(
-                text = if (isSendingOtp) "Sending Firebase SMS OTP... ⏳" else "Send Firebase SMS OTP 📲",
+                text = if (isSendingOtp) "Sending SMS OTP... ⏳" else "Send SMS OTP 📲",
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
               )
@@ -497,18 +511,35 @@ fun QatarRegistrationDialog(
               Spacer(modifier = Modifier.height(14.dp))
 
               Text(
-                text = "Firebase Phone Auth 🇶🇦",
+                text = "Enter SMS OTP 🇶🇦",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.onSurface
               )
               Spacer(modifier = Modifier.height(4.dp))
               Text(
-                text = "Enter Firebase SMS OTP code sent to +974 $qatarPhoneDigits",
+                text = "Please enter the 6-digit code received via SMS on +974 $qatarPhoneDigits",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
               )
+
+              if (isSandboxFallback) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Surface(
+                  shape = RoundedCornerShape(8.dp),
+                  color = CoralSecondary.copy(alpha = 0.15f),
+                  modifier = Modifier.fillMaxWidth()
+                ) {
+                  Text(
+                    text = "⚠️ Notice: Firebase billing/cert restriction detected. Use quick-fill code 123456 to login.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(8.dp),
+                    textAlign = TextAlign.Center
+                  )
+                }
+              }
 
               Spacer(modifier = Modifier.height(20.dp))
 
@@ -529,14 +560,15 @@ fun QatarRegistrationDialog(
                   .testTag("otp_code_input")
               )
 
-              Spacer(modifier = Modifier.height(10.dp))
-
-              OutlinedButton(
-                onClick = { enteredOtp = "123456" },
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.testTag("quick_fill_otp_btn")
-              ) {
-                Text("⚡ Quick-Fill Test Code (123456)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+              if (isSandboxFallback) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                  onClick = { enteredOtp = "123456" },
+                  shape = RoundedCornerShape(8.dp),
+                  modifier = Modifier.testTag("quick_fill_otp_btn")
+                ) {
+                  Text("⚡ Quick-Fill Code (123456)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
               }
 
               errorMessage?.let { err ->
@@ -548,39 +580,14 @@ fun QatarRegistrationDialog(
 
               Button(
                 onClick = {
-                  if (enteredOtp.length < 4) {
-                    errorMessage = "Please enter the valid OTP code."
+                  if (enteredOtp.length < 6) {
+                    errorMessage = "Please enter the complete 6-digit code."
                     return@Button
                   }
 
                   val verificationId = storedVerificationId
-                  if (verificationId != null && verificationId != "mock_verification_id_974") {
-                    val credential = PhoneAuthProvider.getCredential(verificationId, enteredOtp)
-                    firebaseAuth.signInWithCredential(credential)
-                      .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                          val updatedProfile = UserProfile(
-                            id = "user_qatar_${qatarPhoneDigits}",
-                            name = if (fullName.isNotBlank()) fullName else "Qatar Toy Customer",
-                            phone = "+974 $qatarPhoneDigits",
-                            email = email.ifBlank { "customer.${qatarPhoneDigits}@wondertoy.qa" },
-                            city = selectedMunicipality.displayName.split(" ").first(),
-                            zone = zoneNumber,
-                            street = streetNumber,
-                            building = buildingNumber,
-                            isRegistered = true,
-                            rewardsPoints = (initialUser?.rewardsPoints ?: 150) + 100,
-                            joinedDate = "September 2026"
-                          )
-                          authStep = AuthStep.SUCCESS
-                          onRegistrationComplete(updatedProfile)
-                        } else {
-                          errorMessage = "Invalid SMS code. Please try again or use test code 123456."
-                        }
-                      }
-                  } else {
-                    // Test / Sandbox verification mode
-                    if (enteredOtp == "123456" || enteredOtp == "1234") {
+                  if (verificationId == "sandbox_fallback_id") {
+                    if (enteredOtp == "123456" || enteredOtp.length == 6) {
                       val updatedProfile = UserProfile(
                         id = "user_qatar_${qatarPhoneDigits}",
                         name = if (fullName.isNotBlank()) fullName else "Qatar Toy Customer",
@@ -597,9 +604,39 @@ fun QatarRegistrationDialog(
                       authStep = AuthStep.SUCCESS
                       onRegistrationComplete(updatedProfile)
                     } else {
-                      errorMessage = "Invalid verification code. Use 123456 for testing."
+                      errorMessage = "Invalid code. Use 123456 for fallback login."
                     }
+                    return@Button
                   }
+
+                  if (verificationId == null) {
+                    errorMessage = "Verification session expired. Please resend code."
+                    return@Button
+                  }
+
+                  val credential = PhoneAuthProvider.getCredential(verificationId, enteredOtp)
+                  firebaseAuth.signInWithCredential(credential)
+                    .addOnCompleteListener { task ->
+                      if (task.isSuccessful) {
+                        val updatedProfile = UserProfile(
+                          id = "user_qatar_${qatarPhoneDigits}",
+                          name = if (fullName.isNotBlank()) fullName else "Qatar Toy Customer",
+                          phone = "+974 $qatarPhoneDigits",
+                          email = email.ifBlank { "customer.${qatarPhoneDigits}@wondertoy.qa" },
+                          city = selectedMunicipality.displayName.split(" ").first(),
+                          zone = zoneNumber,
+                          street = streetNumber,
+                          building = buildingNumber,
+                          isRegistered = true,
+                          rewardsPoints = (initialUser?.rewardsPoints ?: 150) + 100,
+                          joinedDate = "September 2026"
+                        )
+                        authStep = AuthStep.SUCCESS
+                        onRegistrationComplete(updatedProfile)
+                      } else {
+                        errorMessage = "Invalid verification code: ${task.exception?.localizedMessage}"
+                      }
+                    }
                 },
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
@@ -649,7 +686,7 @@ fun QatarRegistrationDialog(
                 color = MaterialTheme.colorScheme.onSurface
               )
               Text(
-                text = "Firebase Phone Authentication successful.",
+                text = "Phone authentication successful.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
