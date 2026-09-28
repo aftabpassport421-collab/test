@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.model.ToyItem
 import com.example.ui.theme.CoralSecondary
 import com.example.ui.theme.IndigoPrimary
@@ -82,12 +83,24 @@ fun ToyCard(
           ),
         contentAlignment = Alignment.Center
       ) {
-        // Main Visual Emoji / Icon
-        Text(
-          text = toy.iconEmoji,
-          fontSize = 54.sp,
-          modifier = Modifier.testTag("toy_emoji_${toy.id}")
-        )
+        // Main Visual Emoji / Icon or AsyncImage
+        if (toy.imageUrl.isNotBlank()) {
+          AsyncImage(
+            model = toy.imageUrl,
+            contentDescription = toy.name,
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(130.dp)
+              .testTag("toy_image_${toy.id}"),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+          )
+        } else {
+          Text(
+            text = toy.iconEmoji,
+            fontSize = 54.sp,
+            modifier = Modifier.testTag("toy_emoji_${toy.id}")
+          )
+        }
 
         // Badge if available (e.g. Bestseller, -20%)
         if (toy.badge != null) {

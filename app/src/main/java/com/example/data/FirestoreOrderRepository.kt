@@ -255,6 +255,7 @@ class FirestoreOrderRepository private constructor(context: Context) {
                 val stock = (data["stockQuantity"] as? Number)?.toInt() ?: 10
                 val desc = data["description"] as? String ?: ""
                 val brand = data["brand"] as? String ?: "LEGO"
+                val imageUrl = data["imageUrl"] as? String ?: ""
 
                 ToyItem(
                   id = doc.id,
@@ -271,7 +272,8 @@ class FirestoreOrderRepository private constructor(context: Context) {
                   features = listOf("Tested safe for kids", "Official Wonder Toy Product"),
                   inStock = stock > 0,
                   popularScore = 95,
-                  iconEmoji = "🧸"
+                  iconEmoji = "🧸",
+                  imageUrl = imageUrl
                 )
               } else null
             }
@@ -324,7 +326,8 @@ class FirestoreOrderRepository private constructor(context: Context) {
                     features = listOf("Tested safe for kids", "Official Wonder Toy Product"),
                     inStock = stock > 0,
                     popularScore = 95,
-                    iconEmoji = "🧸"
+                    iconEmoji = "🧸",
+                    imageUrl = data["imageUrl"] as? String ?: ""
                   )
                 } else null
               }

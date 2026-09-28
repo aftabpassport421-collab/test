@@ -16,6 +16,9 @@ data class ToyItem(
   val inStock: Boolean = true,
   val popularScore: Int = 90,
   val iconEmoji: String = "🧸",
+  val imageUrl: String = "",
+  val imageUrl2: String = "",
+  val imageUrl3: String = "",
   val accentColorHex: Long = 0xFF4F46E5,
 ) {
   val discountPercent: Int?

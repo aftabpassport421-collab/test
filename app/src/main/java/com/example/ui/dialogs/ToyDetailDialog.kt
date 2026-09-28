@@ -1,6 +1,7 @@
 package com.example.ui.dialogs
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,9 +41,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.model.ToyItem
 import com.example.ui.theme.CoralSecondary
 import com.example.ui.theme.IndigoPrimary
@@ -157,10 +161,47 @@ fun ToyDetailDialog(
           ),
         contentAlignment = Alignment.Center
       ) {
-        Text(
-          text = toy.iconEmoji,
-          fontSize = 80.sp
-        )
+        val images = listOf(toy.imageUrl, toy.imageUrl2, toy.imageUrl3).filter { it.isNotBlank() }
+        var selectedImageIndex by remember { mutableIntStateOf(0) }
+
+        if (images.isNotEmpty()) {
+          Box(modifier = Modifier.fillMaxWidth().height(190.dp)) {
+            AsyncImage(
+              model = images[selectedImageIndex],
+              contentDescription = toy.name,
+              modifier = Modifier
+                .fillMaxWidth()
+                .height(190.dp)
+                .testTag("detail_toy_image_${toy.id}"),
+              contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+
+            if (images.size > 1) {
+              Row(
+                modifier = Modifier
+                  .align(Alignment.BottomCenter)
+                  .padding(8.dp)
+                  .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                  .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+              ) {
+                images.forEachIndexed { idx, _ ->
+                  Box(
+                    modifier = Modifier
+                      .size(if (idx == selectedImageIndex) 8.dp else 6.dp)
+                      .background(if (idx == selectedImageIndex) Color.White else Color.Gray, CircleShape)
+                      .clickable { selectedImageIndex = idx }
+                  )
+                }
+              }
+            }
+          }
+        } else {
+          Text(
+            text = toy.iconEmoji,
+            fontSize = 80.sp
+          )
+        }
 
         // Age Tag
         Surface(
