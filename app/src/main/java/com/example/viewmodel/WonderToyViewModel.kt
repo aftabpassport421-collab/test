@@ -80,10 +80,20 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
 
   private val initialProfile = userSessionManager.getProfile()
 
+  private val initialOrders = if (initialProfile.isRegistered) {
+    firestoreRepo.getOrdersSync().filter {
+      it.userId == initialProfile.id || it.userId == initialProfile.phone || it.phone == initialProfile.phone
+    }
+  } else {
+    emptyList()
+  }
+
   private val _uiState = MutableStateFlow(
     WonderToyUiState(
       userProfile = initialProfile,
-      firestoreOrders = firestoreRepo.getOrdersSync(),
+      currentUserId = initialProfile.id,
+      firestoreOrders = initialOrders,
+      orders = emptyList(),
       isAuthDialogVisible = !initialProfile.isRegistered
     )
   )
@@ -93,10 +103,20 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
     viewModelScope.launch {
       firestoreRepo.observeOrders().collect { updatedOrders ->
         _uiState.update { state ->
+          val myOrders = if (state.userProfile.isRegistered) {
+            updatedOrders.filter {
+              it.userId == state.userProfile.id ||
+              it.userId == state.userProfile.phone ||
+              it.phone == state.userProfile.phone ||
+              it.userId == state.currentUserId
+            }
+          } else {
+            emptyList()
+          }
           state.copy(
-            firestoreOrders = updatedOrders,
+            firestoreOrders = myOrders,
             selectedTrackingOrder = if (state.selectedTrackingOrder != null) {
-              updatedOrders.find { it.orderId == state.selectedTrackingOrder.orderId } ?: state.selectedTrackingOrder
+              myOrders.find { it.orderId == state.selectedTrackingOrder.orderId } ?: state.selectedTrackingOrder
             } else null
           )
         }
@@ -534,10 +554,21 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
   fun updateUserProfile(profile: UserProfile) {
     userSessionManager.saveProfile(profile)
     firestoreRepo.saveUserProfile(profile)
+    val allOrders = firestoreRepo.getOrdersSync()
+    val myOrders = if (profile.isRegistered) {
+      allOrders.filter {
+        it.userId == profile.id ||
+        it.userId == profile.phone ||
+        it.phone == profile.phone
+      }
+    } else {
+      emptyList()
+    }
     _uiState.update {
       it.copy(
         userProfile = profile,
         currentUserId = profile.id,
+        firestoreOrders = myOrders,
         isAuthDialogVisible = false,
         isCheckoutVisible = if (profile.isRegistered && it.cartItems.isNotEmpty()) true else it.isCheckoutVisible
       )
@@ -554,6 +585,14 @@ class WonderToyViewModel(application: Application) : AndroidViewModel(applicatio
       isRegistered = false,
       rewardsPoints = 0
     )
-    _uiState.update { it.copy(userProfile = guest, isAuthDialogVisible = true) }
+    _uiState.update {
+      it.copy(
+        userProfile = guest,
+        currentUserId = guest.id,
+        firestoreOrders = emptyList(),
+        orders = emptyList(),
+        isAuthDialogVisible = true
+      )
+    }
   }
 }
